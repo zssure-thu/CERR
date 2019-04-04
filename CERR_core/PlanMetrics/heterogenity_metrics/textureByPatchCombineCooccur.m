@@ -10,9 +10,9 @@ function [energy3M,entropy3M,sumAvg3M,corr3M,invDiffMom3M,contrast3M,...
 
 % Generate flags
 if ~exist('flagv','var')
-    flagv = ones(1,8);
+    flagv = ones(1,9);
 elseif exist('flagv','var') && isempty(flagv)
-    flagv = ones(1,8);
+    flagv = ones(1,9);
 end
 
 % Flag to draw waitbar
@@ -296,8 +296,9 @@ for slcNum = 1:numSlices
             sum(cooccurPatchM.*log2(cooccurPatchM+1e-10));
     end
     
-    %     % Contrast, inverse Difference Moment
+    %     % Contrast, inverse Difference Moment, sum avg
     px = indPxM * cooccurPatchM;
+    if flagv(3) || flagv(5) || flagv(6)
     %pXminusY = indCtrstM * cooccurPatchM;
     %pXplusY = indPxPlusYm * cooccurPatchM;
     contrastV(calcSlcIndV) = contrastV(calcSlcIndV) + ...
@@ -306,6 +307,7 @@ for slcNum = 1:numSlices
         1./(1+(0:nL-1).^2) * indCtrstM * cooccurPatchM;
     sumAvgV(calcSlcIndV) = sumAvgV(calcSlcIndV) + ...
         (1:2*nL) * indPxPlusYm * cooccurPatchM;
+    end
     
     % weighted pixel average (mu), weighted pixel variance (sig)
     mu = (1:nL) * px;

@@ -142,8 +142,13 @@ switch fieldname
 
                     %Check the image orientation.
                     imgOri = dcm2ml_Element(imgobj.get(hex2dec('00200037')));
-                    %Check patient position
-                    pPos = dcm2ml_Element(imgobj.get(hex2dec('00185100')));                    
+                    
+                    if ~isempty(imgOri) && max(abs((imgOri(:) - [1 0 0 0 1 0]'))) < 1e-3
+                        pPos = 'HFS';
+                    else
+                        %Check patient position
+                        pPos = dcm2ml_Element(imgobj.get(hex2dec('00185100')));
+                    end
                     
                     % Store the patient position associated with this studyUID
                     studyUIDc = {};
@@ -176,7 +181,7 @@ switch fieldname
                             end
                         end                        
                         
-                    elseif strcmpi(type, 'MG')
+                    elseif ismember(type, {'MG','SM'}) % mammogram or pathology
                         imgpos = [0 0 0];
                         imgOri = zeros(6,1);
 
@@ -239,7 +244,8 @@ switch fieldname
                 
             case 'Yes' % Assume Nuclear medicine image
                 
-                    sliceV = dcm2ml_Element(imgobj.get(hex2dec('7FE00010')));
+                    transferSyntaxUID = dcm2ml_Element(imgobj.get(hex2dec('00020010')));
+                    sliceV = dcm2ml_Element(imgobj.get(hex2dec('7FE00010')),transferSyntaxUID);
                     
                     %Rows
                     nRows  = dcm2ml_Element(imgobj.get(hex2dec('00280010')));
@@ -321,7 +327,7 @@ switch fieldname
                           
                     % Check for oblique scan
                     isOblique = 0;
-                    if max(abs(abs(imgOri(:)) - [1 0 0 0 1 0]')) > obliqTol
+                    if isempty(imgOri) || max(abs(abs(imgOri(:)) - [1 0 0 0 1 0]')) > obliqTol
                         isOblique = 1;
                     end
                     
@@ -387,7 +393,7 @@ switch fieldname
                     % Image Orientation
                     imgOri = dcm2ml_Element(imgobj.get(hex2dec('00200037')));
                     
-                    if strcmpi(type,'MG')
+                    if ismember(type,{'MG','SM'}) % mammogram or pathology
                         imgpos = [0 0 0];
                         imgOri = zeros(6,1);
                     end
@@ -432,8 +438,21 @@ switch fieldname
                 
                 % Check for oblique scan
                 isOblique = 0;
-                if max(abs(abs(imgOri(:)) - [1 0 0 0 1 0]')) > 1e-2
+                if isempty(imgOri) || max(abs(abs(imgOri(:)) - [1 0 0 0 1 0]')) > 1e-2
                     isOblique = 1;
+                end
+                
+                if strcmpi(modality,'MG')
+                    imgpos = [0 0 0];
+                    xray3dAcqSeq = dcm2ml_Element(imgobj.get(hex2dec('00189507')));
+                    bodyPartThickness = xray3dAcqSeq.Item_1.BodyPartThickness;
+                    sliceSpacing = bodyPartThickness/double(numMultiFrameImages);
+                end                
+                
+                if strcmpi(modality,'SM')
+                    imgpos = [0 0 0];
+                    sharedFrameFuncGrpSeq = dcm2ml_Element(imgobj.get(hex2dec('52009229')));
+                    sliceSpacing = sharedFrameFuncGrpSeq.Item_1.PixelMeasuresSequence.Item_1.SliceThickness;                    
                 end
                 
                 zValuesV = imgpos(3):sliceSpacing:imgpos(3)+sliceSpacing*double(numMultiFrameImages-1);
@@ -450,6 +469,8 @@ switch fieldname
                     dataS(imageNum) = dataS(1);
                     if ~isOblique
                         dataS(imageNum).zValue = -zValuesV(imageNum)/10;
+                    else
+                        dataS(imageNum).zValue = zValuesV(imageNum)/10;
                     end
                 end
                 

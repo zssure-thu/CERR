@@ -98,7 +98,8 @@ clear cmdFileC
 if exist('inputCmdFile','var') && ~isempty(inputCmdFile)
     userCmdFile = inputCmdFile;
 else
-    optS = CERROptions;
+    optName = fullfile(getCERRPath,'CERROptions.json');
+    optS = opts4Exe(optName);
     cmd_fileName = optS.plastimatch_command_file;
     userCmdFile = fullfile(getCERRPath,'ImageRegistration','plastimatch_command',cmd_fileName);
 end
@@ -116,10 +117,75 @@ if exist('inBspFile','var') && ~isempty(inBspFile)
     cmdFileC{end+1,1} = ['xform_in=',escapeSlashes(inBspFile)];
 end
 
-
+% Switch to plastimatch directory if it exists
+prevDir = pwd;
+plmCommand = 'plastimatch register ';
+optName = fullfile(getCERRPath,'CERROptions.json');
+optS = opts4Exe(optName);
+if exist(optS.plastimatch_build_dir,'dir') && isunix
+    cd(optS.plastimatch_build_dir)
+    plmCommand = ['./',plmCommand];
+end
 
 switch upper(algorithm)
     
+    
+    case 'ALIGN CENTER'
+        
+        %         alignC{1,1} = '#Insight Transform File V1.0';
+        %         alignC{end+1,1} = '';
+        %         alignC{end+1,1} = '#Transform 0';
+        %         alignC{end+1,1} = '';
+        %         alignC{end+1,1} = 'Transform: TranslationTransform_double_3_3';
+        %         alignC{end+1,1} = '';
+        
+        %         indexS = basePlanC{end};
+        %         [xBaseV, yBaseV, zBaseV] = getScanXYZVals(basePlanC{indexS.scan}(baseScanNum));
+        %         indexS = movPlanC{end};
+        %         [xMoveV, yMoveV, zMoveV] = getScanXYZVals(movPlanC{indexS.scan}(movScanNum));
+        %
+        %         deltaX = -(median(xMoveV) - median(xBaseV)) * 10;
+        %         deltaY = -(median(yBaseV) - median(yMoveV)) * 10;
+        %         deltaZ = -(median(zBaseV) - median(zMoveV)) * 10;
+        
+        %         alignC{end+1,1} = ['Parameters:',' ',num2str(deltaX),' ',num2str(deltaY),' ',num2str(deltaZ)];
+        %         alignC{end+1,1} = '';
+        %         alignC{end+1,1} = ['FixedParameters:'];
+        %         cell2file(alignC,outBspFile);
+        
+        %         vf = nan([size(getScanArray(baseScanNum,basePlanC)),3]);
+        %         vf(:,:,:,1) = deltaX;
+        %         vf(:,:,:,2) = deltaY;
+        %         vf(:,:,:,3) = deltaZ;
+        %
+        %         [~, uniformScanInfoS] = getUniformizedCTScan(0,baseScanNum,basePlanC);
+        %         resolution = [uniformScanInfoS.grid2Units, uniformScanInfoS.grid1Units, uniformScanInfoS.sliceThickness] * 10;
+        %         [xVals, yVals, zVals] = getUniformScanXYZVals(basePlanC{indexS.scan}(baseScanNum));
+        %         offset = [xVals(1) -yVals(1) -zVals(end)] * 10;
+        %
+        %         writemetaimagefile(outBspFile, single(vf), resolution, offset);
+        
+        
+        % Rigid step
+        if exist('outBspFile','var') & ~isempty(outBspFile)
+            vfFileName = outBspFile;
+        else
+            vfFileName = fullfile(getCERRPath,'ImageRegistration','tmpFiles',['align_center_vf_',baseScanUID,'_',movScanUID,'.mha']);
+        end
+        
+        cmdFileC{end+1,1} = ['vf_out=',escapeSlashes(vfFileName)];
+        cmdFileC{end+1,1} = '';
+        cmdFileC{end+1,1} ='[STAGE]';
+        cmdFileC{end+1,1} ='xform=align_center';
+        cmdFileC{end+1,1} = '';
+        cell2file(cmdFileC,cmdFileName_rigid)
+        
+        % Run plastimatch Registration
+        system([plmCommand, cmdFileName_rigid]);
+        
+        % Cleanup
+        bspFileName = vfFileName;
+        
     case 'BSPLINE PLASTIMATCH'
         
         deleteBspFlg = 1;
@@ -154,7 +220,7 @@ switch upper(algorithm)
         cell2file(cmdFileC,cmdFileName_dir)
         
         % Run plastimatch Registration
-        system(['plastimatch register ', cmdFileName_dir]);
+        system([plmCommand, cmdFileName_dir]);
         
         
         % Read bspline coefficients file
@@ -201,64 +267,69 @@ switch upper(algorithm)
             delete(cmdFileName_rigid);
         end
         
-        % Create a file name and path for storing bspline coefficients
-        bspFileName_rigid = fullfile(getCERRPath,'ImageRegistration','tmpFiles',['bsp_coeffs_',baseScanUID,'_',movScanUID,'_rigid.txt']);
-        bspFileName = fullfile(getCERRPath,'ImageRegistration','tmpFiles',['bsp_coeffs_',baseScanUID,'_',movScanUID,'.txt']);
-        if exist(bspFileName_rigid,'file')
-            delete(bspFileName_rigid)
+        % Create a file name and path for storing VF
+        if exist('outBspFile','var') & ~isempty(outBspFile)
+            vfFileName = outBspFile;
+        else
+            vfFileName = fullfile(getCERRPath,'ImageRegistration','tmpFiles',['rigid_vf_',baseScanUID,'_',movScanUID,'.mha']);
         end
-        if exist(bspFileName,'file')
-            delete(bspFileName)
-        end
-        
-        % Create a file name and path for storing bspline coefficients
-        bspFileName_rigid = fullfile(getCERRPath,'ImageRegistration','tmpFiles',['bsp_coeffs_',baseScanUID,'_',movScanUID,'_rigid.txt']);
-        if exist(bspFileName_rigid,'file')
-            delete(bspFileName_rigid)
+        if exist(vfFileName,'file')
+            delete(vfFileName)
         end
         
         % Rigid step
-        userCmdFile = fullfile(getCERRPath,'ImageRegistration','plastimatch_command','bspline_register_cmd_rigid.txt');
         ursFileC = file2cell(userCmdFile);
-        cmdFileC{1,1} = '[GLOBAL]';
-        cmdFileC{end+1,1} = ['fixed=',escapeSlashes(baseScanFileName)];
-        cmdFileC{end+1,1} = ['moving=',escapeSlashes(movScanFileName)];
-        cmdFileC{end+1,1} = ['xform_out=',escapeSlashes(bspFileName_rigid)];
+        cmdFileC{end+1,1} = ['vf_out=',escapeSlashes(vfFileName)];
         cmdFileC{end+1,1} = '';
         cmdFileC(end+1:end+size(ursFileC,2),1) = ursFileC(:);
         cell2file(cmdFileC,cmdFileName_rigid)
         
         % Run plastimatch Registration
-        system(['plastimatch register ', cmdFileName_rigid]);
+        system([plmCommand, cmdFileName_rigid]);
         
-        % Read output file
-        fileC = file2cell(bspFileName_rigid);
-        indParam = strfind(fileC{4},'Parameters:');
-        rigidParamsV = str2num(fileC{4}(indParam+11:end));
-        indParam = strfind(fileC{5},'FixedParameters:');
-        fixedParamsV = str2num(fileC{5}(indParam+16:end));
-        translationM = eye(4);
-        translationM(1:3,1:3) = reshape(rigidParamsV(1:9),3,3)';
-        translationM(1:3,4) = rigidParamsV(10:12)/10;
-        %translationM(4,1:3) = rigidParamsV(10:12)/10;
-        transM = translationM;
-        transM(2:3,4) = -transM(2:3,4);
-        %         translationM(1:3,4) = -rigidParamsV(4:6)/10;
-        %         translationM(3,4) = -translationM(3,4);
-        %         Rx = eye(4);
-        %         Rx([2 3],[2 3]) = [cos(rigidParamsV(1)) sin(rigidParamsV(1)); -sin(rigidParamsV(1)) cos(rigidParamsV(1))];
-        %         Ry = eye(4);
-        %         Ry([1 3],[1 3]) = [cos(rigidParamsV(2)) -sin(rigidParamsV(2)); sin(rigidParamsV(2)) cos(rigidParamsV(2))];
-        %         Rz = eye(4);
-        %         Rz([1 2],[1 2]) = [cos(rigidParamsV(3)) sin(rigidParamsV(3)); -sin(rigidParamsV(3)) cos(rigidParamsV(3))];
-        %         bakTransM = eye(4);
-        %         bakTransM(1:3,4) = fixedParamsV/10;
-        %         bakTransM(3,4) = -bakTransM(3,4);
-        %         fwTransM = eye(4);
-        %         fwTransM(1:3,4) = -fixedParamsV/10;
-        %         fwTransM(3,4) = -fwTransM(3,4);
-        %         transM = bakTransM*Rx*Ry*Rz*fwTransM*translationM;
-        movPlanC{indexMovS.scan}(movScanNum).transM = transM;
+        bspFileName = vfFileName;
+
+        % Cleanup
+        try
+            delete(baseScanFileName);
+            delete(movScanFileName);
+            if deleteBspFlg
+                delete(bspFileName);
+            end
+            delete(baseMaskFileName);
+            delete(movMaskFileName);
+            delete(cmdFileName_dir);
+        end
+        
+        %         % Read output file
+        %         fileC = file2cell(bspFileName_rigid);
+        %         indParam = strfind(fileC{4},'Parameters:');
+        %         rigidParamsV = str2num(fileC{4}(indParam+11:end));
+        %         indParam = strfind(fileC{5},'FixedParameters:');
+        %         fixedParamsV = str2num(fileC{5}(indParam+16:end));
+        %         translationM = eye(4);
+        %         translationM(1:3,1:3) = reshape(rigidParamsV(1:9),3,3)';
+        %         translationM(1:3,4) = rigidParamsV(10:12)/10;
+        %         %translationM(4,1:3) = rigidParamsV(10:12)/10;
+        %         transM = translationM;
+        %         transM(2:3,4) = -transM(2:3,4);
+        %         %         translationM(1:3,4) = -rigidParamsV(4:6)/10;
+        %         %         translationM(3,4) = -translationM(3,4);
+        %         %         Rx = eye(4);
+        %         %         Rx([2 3],[2 3]) = [cos(rigidParamsV(1)) sin(rigidParamsV(1)); -sin(rigidParamsV(1)) cos(rigidParamsV(1))];
+        %         %         Ry = eye(4);
+        %         %         Ry([1 3],[1 3]) = [cos(rigidParamsV(2)) -sin(rigidParamsV(2)); sin(rigidParamsV(2)) cos(rigidParamsV(2))];
+        %         %         Rz = eye(4);
+        %         %         Rz([1 2],[1 2]) = [cos(rigidParamsV(3)) sin(rigidParamsV(3)); -sin(rigidParamsV(3)) cos(rigidParamsV(3))];
+        %         %         bakTransM = eye(4);
+        %         %         bakTransM(1:3,4) = fixedParamsV/10;
+        %         %         bakTransM(3,4) = -bakTransM(3,4);
+        %         %         fwTransM = eye(4);
+        %         %         fwTransM(1:3,4) = -fixedParamsV/10;
+        %         %         fwTransM(3,4) = -fwTransM(3,4);
+        %         %         transM = bakTransM*Rx*Ry*Rz*fwTransM*translationM;
+        %         movPlanC{indexMovS.scan}(movScanNum).transM = transM;
+        
         
     case 'BSPLINE ITK'
         
@@ -296,7 +367,7 @@ switch upper(algorithm)
         cell2file(cmdFileC,cmdFileName_dir)
         
         % Run plastimatch Registration
-        system(['plastimatch register ', cmdFileName_dir]);
+        system([plmCommand, cmdFileName_dir]);
         
         % Cleanup
         try
@@ -313,4 +384,7 @@ switch upper(algorithm)
     case 'DEMONS ITK'
         
 end
+
+% Switch back to the previous directory
+cd(prevDir)
 

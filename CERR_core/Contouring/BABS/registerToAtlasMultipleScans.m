@@ -30,7 +30,7 @@ if exist('initPlmCmdFile','var') && ~isempty(initPlmCmdFile)
     initRegFlag = 1;
 end
 parfor movNum = 1:length(movScanFileC)
-    try
+    try % required to skip failed registrations
     % Load base planC
     planC = loadPlanC(baseScanFile,tempdir);
     planC = updatePlanFields(planC);
@@ -55,10 +55,64 @@ parfor movNum = 1:length(movScanFileC)
     
     % Get masks for the dental artifacts
     baseMask3M = planC{indexS.scan}(1).scanArray < 3500;
-    %movMask3M = planD{indexSD.scan}(1).scanArray < 3500;
-    movMask3M = ~getUniformStr(7,planD); % hand delineated noise
-
-    % Create a starting registration transformation based on CT that will 
+    movMask3M = planD{indexSD.scan}(1).scanArray < 3500;
+    %movMask3M = ~getUniformStr(7,planD); % hand delineated noise
+    
+    % Register all image representations to each other starting from the
+    % transformation generated previously
+    numScans = length(planC{indexS.scan});
+    numScans = 1;
+    allStrNumV = 1:length(planD{indexSD.structures})-1; % -1 to omit the "noise" structure
+    assocScanV = getStructureAssociatedScan(allStrNumV,planD);
+    
+    
+    % Align_center the moving scan and structures
+    baseScanNum = 1;
+    movScanNum = 1;
+    algorithm = 'ALIGN CENTER';
+    baseMaskAlgCtr3M = [];
+    movMaskAlgCtr3M = [];
+    threshold_bone = [];
+    plmCmdFile = '';
+    inBspFile = '';
+    vfAlignCtrFile = fullfile(getCERRPath,'ImageRegistration','tmpFiles',...
+        strcat(planC{indexS.scan}(1).scanUID,...
+        planD{indexSD.scan}(1).scanUID,'_align_ctr.nrrd'));
+    [planC, planD] = register_scans(planC, planD, baseScanNum, movScanNum,...
+        algorithm, baseMaskAlgCtr3M, movMaskAlgCtr3M, threshold_bone, plmCmdFile, ...
+        inBspFile, vfAlignCtrFile);
+    numStructs = length(planC{indexS.structures});
+    
+    numScansMov = length(planD{indexSD.scan});
+    % Deform scans and structures based on align_center
+    for scanNum = 1:numScansMov
+        planD = warp_scan(vfAlignCtrFile,scanNum,planD,planD);
+        strV = find(getStructureAssociatedScan(1:numStructs,planD) == scanNum);
+        if ~isempty(strV)
+            strCreationScanNum = length(planD{indexSD.scan});
+            planD = warp_structures(vfAlignCtrFile,strCreationScanNum,strV,planD,planD);
+        end
+    end
+    
+    % Delete original scans
+    for scanNum = numScansMov:-1:1
+        planD = deleteScan(planD,scanNum);
+    end
+    
+    % Delete the Vf file for align_center
+    delete(vfAlignCtrFile)
+    
+    % Remove Warped_ from structure names
+    for strNum = 1:length(planD{indexSD.structures})
+        indWarp = strfind(planD{indexSD.structures}(strNum).structureName,'Warped_');
+        if ~isempty(indWarp)
+            planD{indexSD.structures}(strNum).structureName = ...
+                planD{indexSD.structures}(strNum).structureName(8:end);
+        end
+    end    
+    
+    
+    % Create a starting registration transformation based on CT that will
     % be used by all the image representations
     inBspFile = '';
     outBspFile = '';
@@ -82,14 +136,14 @@ parfor movNum = 1:length(movScanFileC)
         
     end
     
-    % Register all image representations to each other starting from the
-    % transformation generated previously
-    numScans = length(planC{indexS.scan});
-    numScans = 3;
-    allStrNumV = 1:length(planD{indexSD.structures})-1; % -1 to omit the "noise" structure
-    assocScanV = getStructureAssociatedScan(allStrNumV,planD);
+%     % Register all image representations to each other starting from the
+%     % transformation generated previously
+%     numScans = length(planC{indexS.scan});
+%     numScans = 1;
+%     allStrNumV = 1:length(planD{indexSD.structures})-1; % -1 to omit the "noise" structure
+%     assocScanV = getStructureAssociatedScan(allStrNumV,planD);
     
-    inputCmdFile = '';
+    %inputCmdFile = '';
     
     for scanNum = 1:numScans
         
@@ -98,8 +152,8 @@ parfor movNum = 1:length(movScanFileC)
         movScanNum  = scanNum;
         movStructNumsV = find(assocScanV == scanNum);
         strCreationScanNum = scanNum;        
-        %algorithm = 'BSPLINE PLASTIMATCH';
-        algorithm = 'DEMONS PLASTIMATCH';
+        algorithm = 'BSPLINE PLASTIMATCH';
+        %algorithm = 'DEMONS PLASTIMATCH';
         %baseMask3M = [];
         %movMask3M = [];
         if scanNum == 1
@@ -117,6 +171,14 @@ parfor movNum = 1:length(movScanFileC)
         [planC, planD] = register_scans(planC, planD, baseScanNum, movScanNum,...
             algorithm, baseMask3M, movMask3M, threshold_bone, refinePlmCmdFile, ...
             inBspFile, outBspFile);
+        tic;
+        while strcmpi(algorithm,'DEMONS PLASTIMATCH') && ~exist(outBspFile,'file')
+            pause(1)
+            if toc > 10
+                break;
+            end
+        end
+        %pause(1) % avoid feature accel error
         
         % Warp scan
         if strcmpi(algorithm,'DEMONS PLASTIMATCH')
@@ -124,7 +186,6 @@ parfor movNum = 1:length(movScanFileC)
         else            
             deformS = planC{indexS.deform}(end);
         end
-        
         planC = warp_scan(deformS,movScanNum,planD,planC);
         
         % Warp the passed structure

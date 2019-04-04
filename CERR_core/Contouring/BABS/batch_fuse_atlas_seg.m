@@ -162,7 +162,7 @@ for indBase = 1:length(dirS)
         greWeightedStrAvgV(~allCandsV) = min(greWeightedStrAvgV);
         greDose3M = reshape(greWeightedStrAvgV,uniScanSiz);
         
-        threshV = multithresh(greDose3M(:),3); % arbitrary 3 levels. optimize?
+        threshV = multithresh(greDose3M(:),4); % arbitrary 3 levels. optimize?
 
 %         % GRE-weighted average
 %         indKeepV = sum(strAllM,2) > 3;
@@ -216,6 +216,7 @@ for indBase = 1:length(dirS)
         indZerosV = sum(strAllM(:,noOutV),2) == 0;
         W = zeros(size(meanAgreeV));
         [W(~indZerosV,:),p,q] = gpuStaple(strAllM(~indZerosV,noOutV) > 0,numIter,p,q);
+        % [W(~indZerosV,:),p,q] = staple(strAllM(~indZerosV,noOutV) > 0,numIter,p,q);
         
         % Structure Name
         structName = planC{indexS.structures}(structNum).structureName;
@@ -226,11 +227,11 @@ for indBase = 1:length(dirS)
             scanNum = 1;
             
             % STAPLE
-            stapleStr3M = reshape(W > 0.8,uniScanSiz);
+            stapleStr3M = reshape(W > 0.95,uniScanSiz);
             %planC = maskToCERRStructure(stapleStr3M,isUniform,scanNum,...
             %    [structName,'_STAPLE_',num2str(0.9*100),'_pct_conf'],planC);
             planC = maskToCERRStructure(stapleStr3M,isUniform,scanNum,...
-                [structName,'_STAPLE_',num2str(0.8*100),'_pct_conf'],planC);
+                [structName,'_STAPLE_',num2str(0.95*100),'_pct_conf'],planC);
             %--------------------------------%
             planC = deleteStructureSegments(length(planC{indexS.structures}),...
                 0.05,planC);
@@ -261,7 +262,7 @@ for indBase = 1:length(dirS)
     save_planC(planC,[],'passed',outputFileNam);
     
     % Delete the pca file
-    delete(baseScan)
+    %delete(baseScan)
     
 end
 

@@ -429,7 +429,8 @@ for j=1:length(axisInfo.doseObj)
                         end
                     else
                         
-                        [cData3M, xLim, yLim] = CERRDoseColorWash(hAxis, dose2M, doseXVals, doseYVals,  offset, [], [], [],dim);
+                        scanSet = [];
+                        [cData3M, xLim, yLim] = CERRDoseColorWash(hAxis, dose2M, doseXVals, doseYVals,  offset, [], [], [], scanSet);
                         
                         if stateS.imageRegistrationBaseDataset == doseSet && strcmpi(stateS.imageRegistrationBaseDatasetType, 'dose')
                             alpha = 1;
@@ -454,7 +455,9 @@ for j=1:length(axisInfo.doseObj)
     end
 end
 
-if ~isempty(axisInfo.scanObj) && isempty(axisInfo.doseObj) && ~stateS.imageRegistration
+if ~isempty(axisInfo.scanObj) && (isempty(axisInfo.doseObj) || ...
+        (~isempty(axisInfo.doseObj) && isempty(axisInfo.doseObj.data2M))) ...
+        && ~stateS.imageRegistration && ~isempty(axisInfo.scanObj.handles)
     axisInfo.scanObj.handles.FaceAlpha = 1;
 end
 

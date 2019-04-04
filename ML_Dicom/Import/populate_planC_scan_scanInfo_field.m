@@ -135,7 +135,19 @@ switch fieldname
         modality = dcm2ml_Element(dcmobj.get(hex2dec('00080060')));
         %Pixel Spacing
         if strcmpi(modality,'MG')
-            pixspac = dcm2ml_Element(dcmobj.get(hex2dec('00181164')));
+            perFrameFuncGrpSeq = dcm2ml_Element(dcmobj.get(hex2dec('52009230')));
+            if isstruct(perFrameFuncGrpSeq)
+                pixspac = perFrameFuncGrpSeq.Item_1.PixelMeasuresSequence.Item_1.PixelSpacing;
+            else
+                pixspac = [1 1];
+            end
+        elseif strcmpi(modality,'SM')
+            sharedFrameFuncGrpSeq = dcm2ml_Element(dcmobj.get(hex2dec('52009229')));
+            if isstruct(sharedFrameFuncGrpSeq)
+                pixspac = sharedFrameFuncGrpSeq.Item_1.PixelMeasuresSequence.Item_1.PixelSpacing;
+            else
+                pixspac = [1 1];
+            end
         else
             pixspac = dcm2ml_Element(dcmobj.get(hex2dec('00280030')));
         end
@@ -148,7 +160,19 @@ switch fieldname
         modality = dcm2ml_Element(dcmobj.get(hex2dec('00080060')));
         %Pixel Spacing
         if strcmpi(modality,'MG')
-            pixspac = dcm2ml_Element(dcmobj.get(hex2dec('00181164')));
+            perFrameFuncGrpSeq = dcm2ml_Element(dcmobj.get(hex2dec('52009230')));
+            if isstruct(perFrameFuncGrpSeq)
+                pixspac = perFrameFuncGrpSeq.Item_1.PixelMeasuresSequence.Item_1.PixelSpacing;
+            else
+                pixspac = [1 1];
+            end
+        elseif strcmpi(modality,'SM')
+            sharedFrameFuncGrpSeq = dcm2ml_Element(dcmobj.get(hex2dec('52009229')));
+            if isstruct(sharedFrameFuncGrpSeq)
+                pixspac = sharedFrameFuncGrpSeq.Item_1.PixelMeasuresSequence.Item_1.PixelSpacing;
+            else
+                pixspac = [1 1];
+            end
         else
             pixspac = dcm2ml_Element(dcmobj.get(hex2dec('00280030')));
         end
@@ -189,6 +213,7 @@ switch fieldname
         
         if isempty(imgpos)
             % Multiframe NM image. Setting this is handled by populate_planC_scan_field.
+            dataS = 0;
             return;
         end
         
@@ -221,7 +246,7 @@ switch fieldname
         end
         
         %Pixel Spacing
-        if strcmpi(modality,'MG')
+        if ismember(modality,{'MG','SM'})
             pixspac = dcm2ml_Element(dcmobj.get(hex2dec('00181164')));
             imgOri = zeros(6,1);
             imgpos = [0 0 0];
@@ -285,7 +310,7 @@ switch fieldname
         end
         
         %Pixel Spacing
-        if strcmpi(modality,'MG')
+        if ismember(modality,{'MG','SM'})
             pixspac = dcm2ml_Element(dcmobj.get(hex2dec('00181164')));
             imgOri = zeros(6,1);
             imgpos = [0 0 0];

@@ -36,7 +36,7 @@ figureName = get(gcbf, 'Tag');
 keyPressed = get(gcbf, 'CurrentCharacter');
 keyValue = uint8(keyPressed);
 %
-if ~isempty(stateS.currentKeyPress)
+if isfield(stateS, 'currentKeyPress') && ~isempty(stateS.currentKeyPress)
     stateS.currentKeyPress = keyValue;
 end
 
@@ -98,9 +98,12 @@ switch(keyValue)
                 navigationMontage('right');
             otherwise
         end
-
+        
     case 66 %'B' Toggles bookmark on current Slice
-        navigationMontage('togglebookmark');
+        if isfield(stateS.handle,'navigationMontage')            
+            navigationMontage('togglebookmark');
+        end
+        
 
     case 98 %'b' Cycles through bookmarked slices.
         try

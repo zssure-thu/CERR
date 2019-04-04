@@ -114,11 +114,14 @@ switch upper(vr)
                     }
                 %Decompress JPEG frame
                 nElements = el.countItems;
-                if nElements>2
-                    warning(' dcm2ml_Element does not support multiple fragments');
-                    return
-                else
-                    fragment = typecast(el.getFragment(1),'uint8');
+                %if nElements>2
+                %    warning(' dcm2ml_Element does not support multiple fragments');
+                %    return
+                %else
+                    data = [];
+                    for iFrag = 1:nElements
+                    fragment = typecast(el.getFragment(iFrag-1),'uint8');
+                    if ~isempty(fragment)
                     fileName = getTempName;
                     fid = fopen(fileName,'w');
                     if (fid < 0)
@@ -126,10 +129,18 @@ switch upper(vr)
                     end
                     fwrite(fid,fragment,'uint8');
                     fclose(fid);
-                    tmp = onCleanup(@() delete(fileName));
-                    data = imread(fileName).';
-                    data = data(:);
-                end
+                    %tmp = onCleanup(@() delete(fileName));
+                    %dataTmpV = imread(fileName).';
+                    dataTmpV = imread(fileName);
+                    if ndims(dataTmpV) == 3
+                        dataTmpV = rgb2gray(dataTmpV); % temp for SM modality
+                    end
+                    dataTmpV = permute(dataTmpV,[2,1,3]);
+                    data = [data;dataTmpV(:)];
+                    end
+                    end
+                    delete(fileName)
+                %end
                 
             case '1.2.840.10008.1.2.5'
                 

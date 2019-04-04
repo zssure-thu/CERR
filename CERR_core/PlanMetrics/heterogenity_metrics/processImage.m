@@ -10,6 +10,7 @@ function outS = processImage(filterType,scan3M,mask3M,paramS,hWait)
 %-------------------------------------------------------------------------
 %AI 03/16/18
 
+filterType = strrep(filterType,' ','');
 
 switch filterType
     
@@ -110,6 +111,7 @@ switch filterType
         else
             outname = [wavType,'_',dir];
             outname = strrep(outname,'.','_');
+            outname = strrep(outname,' ','_');
             out3M = wavDecom3D(vol3M,dir,wavType);
             if mod(size(out3M,3),2) > 0
                 out3M = out3M(:,:,1:end-1);
@@ -162,7 +164,7 @@ switch filterType
             drawnow;
         end
         
-    case 'First order statistics'
+    case 'FirstOrderStatistics'
         [minr, maxr, minc, maxc, mins, maxs] = compute_boundingbox(mask3M);
         mask3M                   = mask3M(minr:maxr,minc:maxc,mins:maxs);
         scan3M                   = scan3M(minr:maxr,minc:maxc,mins:maxs);
@@ -192,7 +194,7 @@ switch filterType
         end
         
         
-    case 'Law''s Convolution'
+    case 'LawsConvolution'
         
                 [minr, maxr, minc, maxc, mins, maxs] = compute_boundingbox(mask3M);
                 mask3M                   = mask3M(minr:maxr,minc:maxc,mins:maxs);
@@ -222,7 +224,16 @@ switch filterType
                     end
                 end
         
+    case 'CoLlage'
         
+        [minr, maxr, minc, maxc, mins, maxs] = compute_boundingbox(mask3M);
+        mask3M = mask3M(minr:maxr,minc:maxc,mins:maxs);
+        scan3M = scan3M(minr:maxr,minc:maxc,mins:maxs);
+        scan3M = single(scan3M);
+        dir = paramS.Dimension.val;
+        coLlAGe3M = getCollageFeature(scan3M, mask3M, paramS.Dominant_Dir_Radius.val,...
+            paramS.Cooccur_Radius.val, paramS.Number_Gray_Levels.val, dir, hWait);
+        outS.entropy = coLlAGe3M;
         
 end
 
