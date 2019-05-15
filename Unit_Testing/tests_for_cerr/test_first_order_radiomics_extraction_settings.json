@@ -3,12 +3,13 @@
 "structures": ["Target 2"],
 
 "imageType": {
-  		  "Original": {},
+          "Original":{},
           "Wavelets": {
-				"Wavelets": "Haar",
-				"Index": "",
+				"Wavelets": "coif",
+				"Index": 1,
 				"Direction": "HLH"
 			      }
+                
 
 	    },
 
@@ -26,8 +27,8 @@
                                  },
 
 		   "texture" :{ 
-				"binwidth": [],
-                "numGrLevels": 64,
+				"binwidth": 25,
+                "numGrLevels": [],
 				"minIntensity": [],
 				"maxIntensity": [],
                 "directionality": "3D",

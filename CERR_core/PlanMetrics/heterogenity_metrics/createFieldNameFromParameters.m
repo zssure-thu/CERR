@@ -1,18 +1,18 @@
-function fieldName = createFieldNameFromParameters(paramS,imageType)
-% createFieldNamesFromParameters(paramS,imageType)
+function fieldName = createFieldNameFromParameters(imageType,settingS)
+% createFieldNamesFromParameters(imageType,settingS)
 %
 % Create unique fieldname for radiomics features returned by
 % calcRadiomicsForImgType
 %
 % -------------------------------------------------------------------------
 % INPUTS
-% paramS    : Parameter dictionary for radiomics feature extraction
 % imageType : 'Original' or filtered image type (see processImage.m for valid options)
+% settingS  : Parameter dictionary for radiomics feature extraction
 % -------------------------------------------------------------------------
 %
 % AI 4/2/19
 
-settingS = paramS.imageType.(imageType);
+%settingS = paramS.imageType.(imageType);
 
 switch(lower(imageType))
     
@@ -20,7 +20,7 @@ switch(lower(imageType))
         fieldName = imageType;
         
     case 'wavelets'
-        settingsStr = [settingS.Wavelets.val,'_',settingS.Index.val,'_',settingS.Direction.val];
+        settingsStr = [settingS.Wavelets.val,'_',num2str(settingS.Index.val),'_',settingS.Direction.val];
         fieldName = [imageType,'_',settingsStr];
         
     case 'log'

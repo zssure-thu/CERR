@@ -24,7 +24,12 @@ inputH5Path = fullfile(fullSessionPath,'inputH5');
 outputH5Path = fullfile(fullSessionPath,'outputH5');
 mkdir(outputH5Path);
 
-command = sprintf('singularity run --nv %s %s %s', deepLabContainerPath, inputH5Path, outputH5Path);
+fullSessionPath
+bindingDir = ':/scratch'
+bindPath = strcat(fullSessionPath,bindingDir)
+
+command = sprintf('singularity run --nv --bind  %s %s %s', bindPath, deepLabContainerPath, fullSessionPath);
+%command = sprintf('singularity run --nv %s %s %s', deepLabContainerPath, inputH5Path, outputH5Path);
 cerrPath
 segResultCERRPath
 command
@@ -34,13 +39,6 @@ configFilePath = fullfile(getCERRPath,'Contouring','models','mr_prostate_DeepLab
 
 %return after execution completed
 joinH5CERR(segResultCERRPath,cerrPath,outputH5Path,configFilePath);
-
-
-
-
-
-
-
 
 
 

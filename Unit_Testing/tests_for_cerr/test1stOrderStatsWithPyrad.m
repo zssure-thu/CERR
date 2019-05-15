@@ -18,9 +18,9 @@ scanNum = getStructureAssociatedScan(strNum,planC);
 
 %% Calculate features using CERR
 
-firstOrderM = calcGlobalRadiomicsFeatures...
+firstOrderS = calcGlobalRadiomicsFeatures...
             (scanNum, strNum, paramS, planC);
-firstOrderS = firstOrderM.firstOrderS;
+firstOrderS = firstOrderS.Original.firstOrderS;
 cerrFirstOrderV = [firstOrderS.energy, firstOrderS.totalEnergy, firstOrderS.interQuartileRange, ...
     firstOrderS.kurtosis+3, firstOrderS.max, firstOrderS.mean, firstOrderS.meanAbsDev, ...
     firstOrderS.median, firstOrderS.medianAbsDev, firstOrderS.min, ...
@@ -39,7 +39,12 @@ mask3M(:,:,uniqueSlices) = maskBoundBox3M;
 
 scanType = 'original';
 
-teststruct = PyradWrapper(testM, mask3M, scanType);
+dx = planC{indexS.scan}(scanNum).scanInfo(1).grid1Units;
+dy = planC{indexS.scan}(scanNum).scanInfo(1).grid1Units;
+dz = mode(diff([planC{indexS.scan}(scanNum).scanInfo(:).zValue]));
+pixelSize = [dx dy dz]*10;
+
+teststruct = PyradWrapper(testM, mask3M, pixelSize, scanType, dirString);
 
 pyradFirstorderNamC = {'Energy', 'TotalEnergy','InterquartileRange','Kurtosis',...
     'Maximum', 'Mean','MeanAbsoluteDeviation','Median','medianAbsDev',...

@@ -1,8 +1,8 @@
-% this script tests Size Zone features between CERR and pyradiomics.
+% this script tests Size Zone features between CERR and pyradiomics on a wavelet filtered image.
 %
 % RKP, 03/22/2018
 
-%% Load image
+%% load image
 sizeZoneParamFileName = fullfile(fileparts(fileparts(getCERRPath)),...
     'Unit_Testing','tests_for_cerr','test_size_zone_radiomics_extraction_settings.json');
 cerrFileName = fullfile(fileparts(fileparts(getCERRPath)),...
@@ -15,6 +15,9 @@ paramS = getRadiomicsParamTemplate(sizeZoneParamFileName);
 strNum = getMatchingIndex(paramS.structuresC{1},{planC{indexS.structures}.structureName});
 scanNum = getStructureAssociatedScan(strNum,planC);
 
+scanType = 'wavelet';
+dirString = 'HHH';
+
 %% Calculate features using CERR
 
 szmS = calcGlobalRadiomicsFeatures...
@@ -22,7 +25,7 @@ szmS = calcGlobalRadiomicsFeatures...
 
 
 
-szmS = szmS.Original.szmFeatS;
+szmS = szmS.Wavelets_Coif1__HHH.szmFeatS;
 
 
 cerrSzmV = [szmS.gln, szmS.glnNorm, szmS.glv, szmS.hglze, szmS.lglze, szmS.lae, szmS.lahgle, ...
@@ -39,14 +42,14 @@ cerrSzmV = [szmS.gln, szmS.glnNorm, szmS.glv, szmS.hglze, szmS.lglze, szmS.lae, 
 % [maskBoundBox3M, uniqueSlices] = rasterToMask(rasterSegments, scanNum, planC);
 % mask3M(:,:,uniqueSlices) = maskBoundBox3M;
 % 
-% scanType = 'original';
 % dx = planC{indexS.scan}(scanNum).scanInfo(1).grid1Units;
 % dy = planC{indexS.scan}(scanNum).scanInfo(1).grid1Units;
 % dz = mode(diff([planC{indexS.scan}(scanNum).scanInfo(:).zValue]));
 % pixelSize = [dx dy dz]*10;
 % 
 % teststruct = PyradWrapper(testM, mask3M, pixelSize, scanType, dirString);
-% %teststruct = PyradWrapper(testM, mask3M, scanType);
+% 
+% %teststruct = PyradWrapper(testM, mask3M, scanType, dirString);
 % 
 % pyradSzmNamC = {'GrayLevelNonUniformity', 'GrayLevelNonUniformityNormalized',...
 %     'GrayLevelVariance', 'HighGrayLevelZoneEmphasis',  'LowGrayLevelZoneEmphasis', ...
@@ -55,7 +58,7 @@ cerrSzmV = [szmS.gln, szmS.glnNorm, szmS.glv, szmS.hglze, szmS.lglze, szmS.lae, 
 %     'ZonePercentage', 'SmallAreaEmphasis','SmallAreaHighGrayLevelEmphasis', ...
 %     'SmallAreaLowGrayLevelEmphasis', 'ZoneEntropy'};
 % 
-% pyradSzmNamC = strcat(['original', '_glszm_'],pyradSzmNamC);
+% pyradSzmNamC = strcat(['wavelet','_', dirString, '_glszm_'],pyradSzmNamC);
 % 
 % pyRadSzmV = [];
 % for i = 1:length(pyradSzmNamC)
@@ -66,9 +69,11 @@ cerrSzmV = [szmS.gln, szmS.glnNorm, szmS.glv, szmS.hglze, szmS.lglze, szmS.lae, 
 %     end
 % end
 % 
-% %% Comparison of pyradiomics size zone vector with CERR's
+% 
+% %% Comparison of wavelet processed pyradiomics size zone vector with CERR's
 % szmDiffV = (cerrSzmV - pyRadSzmV) ./ cerrSzmV * 100
 
-%% Comparison of previously calculated pyradiomics size zone vector with CERR's
-saved_pyRadSzmV = [36.7092819614711,0.0214298201759901,347.680051057261,2155.09632224168,0.00772786214050312,5645.66900175131,10069528.4273205,12.4092677586083,973.999416228838,0.568592770711523,5615.26790870541,0.181365802011646,0.781168839292702,1738.84926329545,0.00456792375062457,7.20864310737143];
+
+%% Comparison of wavelet pre-processed previously calculated pyradiomics size zone vector with CERR's
+saved_pyRadSzmV = [99.2292609351433,0.0498890200780007,40.1863543135308,966.928104575163,0.00177821537199899,5792.26093514329,5390040.98944193,6.23296837296028,970.669180492710,0.488018693058175,5769.71156797277,0.210587612493383,0.726234798465152,704.061962584404,0.00146164305463294,6.18178582985932];
 szmDiffV = (cerrSzmV - saved_pyRadSzmV) ./ cerrSzmV * 100

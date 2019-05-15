@@ -3,7 +3,7 @@ function featureS = calcRadiomicsForImgType(volOrig3M,maskBoundingBox3M,paramS,g
 %Derive user-defined image type and extract radiomics features.
 %
 %AI 3/28/19
-
+%AI 5/1/19    Turned off flag for diffAvg since this is equivalent to dissimilarity. 
 
 % Voxel volume for Total Energy calculation
 xValsV = gridS.xValsV;
@@ -32,12 +32,23 @@ end
 whichFeatS = paramS.whichFeatS;
 featureS = struct;
 
-imageTypeC = fieldnames(paramS.imageType);
+% Get image types with various parameters
+fieldNamC = fieldnames(paramS.imageType);
+imageTypeC = {};
+for iImg = 1:length(fieldNamC)
+    for iFilt = 1:length(paramS.imageType.(fieldNamC{iImg}))
+        filtParamS = struct();
+        filtParamS.imageType = fieldNamC{iImg};
+        filtParamS.paramS = paramS.imageType.(fieldNamC{iImg})(iFilt);
+        imageTypeC{end+1} = filtParamS;
+    end
+end
+
 %% Loop over image types
 for k = 1:length(imageTypeC)
     
     %Generate volume based on original/derived imageType
-    if strcmpi(imageTypeC{k},'original')
+    if strcmpi(imageTypeC{k}.imageType,'original')
         minIntensityCutoff = [];
         maxIntensityCutoff = [];
         if isfield(paramS.textureParamS,'minIntensityCutoff')
@@ -49,8 +60,8 @@ for k = 1:length(imageTypeC)
         volToEval = volOrig3M;
         quantizeFlag = paramS.toQuantizeFlag;
     else
-        outS = processImage(imageTypeC{k},volOrig3M,maskBoundingBox3M,...
-            paramS.imageType.(imageTypeC{k}));
+        outS = processImage(imageTypeC{k}.imageType,volOrig3M,maskBoundingBox3M,...
+            imageTypeC{k}.paramS);
         derivedImgName = fieldnames(outS);
         volToEval = outS.(derivedImgName{1});
         quantizeFlag = true; % always quantize the derived image
@@ -74,7 +85,7 @@ for k = 1:length(imageTypeC)
         % Reassign the number of gray levels in case they were computed for the
         % passed binwidth
         numGrLevels = max(quantizedM(:));
-        paramS.textureParamS.numGrLevels = numGrLevels;
+        %paramS.textureParamS.numGrLevels = numGrLevels;
         
     else
         quantizedM = volToEval;
@@ -85,7 +96,10 @@ for k = 1:length(imageTypeC)
     
     
     %Feature calculation
-    outFieldName = createFieldNameFromParameters(paramS,imageTypeC{k});
+    % outFieldName = createFieldNameFromParameters(paramS,imageTypeC{k});
+    % outFieldName = createFieldNameFromParameters(imageType,filtParamS);
+    outFieldName = createFieldNameFromParameters...
+        (imageTypeC{k}.imageType,imageTypeC{k}.paramS);
 
     % --- 1. First-order features ---
     if whichFeatS.firstOrder.flag
@@ -94,6 +108,7 @@ for k = 1:length(imageTypeC)
             paramS.firstOrderParamS.offsetForEnergy,paramS.firstOrderParamS.binWidthEntropy);
     end
     
+    tic
     %---2. Shape features ----
     if whichFeatS.shape.flag
         rcsV = [];
@@ -103,6 +118,7 @@ for k = 1:length(imageTypeC)
         featureS.(outFieldName).shapeS = getShapeParams(maskBoundingBox3M, ...
             {xValsV, yValsV, zValsV},rcsV);
     end
+    toc
     
     %---3. Higher-order (texture) features ----
     
@@ -132,7 +148,7 @@ for k = 1:length(imageTypeC)
                 error('Invalid input. Directionality must be "2D" or "3D"');
         end
         
-        numGrLevels = paramS.textureParamS.numGrLevels;
+        %numGrLevels = paramS.textureParamS.numGrLevels;
         voxelOffset = paramS.textureParamS.voxelOffset;
         
         % a. GLCM
@@ -199,8 +215,10 @@ for k = 1:length(imageTypeC)
             xAbsForIxV = paramS.ivhParamS.xForIxCc; % absolute volume [cc]
             xForVxV = paramS.ivhParamS.xForVxPct; % percent intensity cutoff
             xAbsForVxV = paramS.ivhParamS.xForVxAbs; % absolute intensity cutoff [HU]
-            featureS.(outFieldName).ivhFeaturesS = getIvhParams(structNum, scanNum, IVHBinWidth,...
-                xForIxV, xAbsForIxV, xForVxV, xAbsForVxV,planC);
+            scanV = volToEval(maskBoundingBox3M);
+            volV = repmat(VoxelVol,numel(scanV),1);
+            featureS.(outFieldName).ivhFeaturesS = getIvhParams(scanV, volV, IVHBinWidth,...
+                xForIxV, xAbsForIxV, xForVxV, xAbsForVxV);
             
         end
     end
@@ -230,7 +248,7 @@ end
         glcmFlagS.dissimilarity = 1;
         glcmFlagS.diffEntropy = 1;
         glcmFlagS.diffVar = 1;
-        glcmFlagS.diffAvg = 1;
+        glcmFlagS.diffAvg = 0;  %Equivalent to dissimilarity
         glcmFlagS.sumVar = 1;
         glcmFlagS.sumEntropy = 1;
         glcmFlagS.clustTendency = 1;

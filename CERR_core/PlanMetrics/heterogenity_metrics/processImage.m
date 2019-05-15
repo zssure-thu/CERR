@@ -12,10 +12,13 @@ function outS = processImage(filterType,scan3M,mask3M,paramS,hWait)
 
 filterType = strrep(filterType,' ','');
 
+% record the original image size
+origSiz = size(scan3M);
+[minr, maxr, minc, maxc, mins, maxs] = compute_boundingbox(mask3M);
+
 switch filterType
     
-    case 'Haralick Cooccurance'
-        [minr, maxr, minc, maxc, mins, maxs]= compute_boundingbox(mask3M);
+    case 'HaralickCooccurance'
         maskBoundingBox3M                   = mask3M(minr:maxr,minc:maxc,mins:maxs);
         SUVvals3M                           = mask3M.*double(scan3M);
         volToEval                           = SUVvals3M(minr:maxr,minc:maxc,mins:maxs);
@@ -34,16 +37,29 @@ switch filterType
             flagV(idx-1) = 1;
         end
         
+        %Optional parametets
+        if ~isfield(paramS,'minIntensity')
+            paramS.minIntensity.val = [];
+        end
+        if ~isfield(paramS,'maxIntensity')
+            paramS.maxIntensity.val = [];
+        end
+        if ~isfield(paramS,'binWidth')
+            paramS.binWidth.val = [];
+        end
+        
         if exist('hWait','var') && ishandle(hWait)
             [energy,entropy,sumAvg,corr,...
                 invDiffMom,contrast,clustShade,...
                 clustProminence,haralCorr] = textureByPatchCombineCooccur(volToEval,...
-                paramS.NumLevels.val, paramS.PatchSize.val, offsetsM, flagV, hWait);
+                paramS.NumLevels.val, paramS.PatchSize.val, offsetsM, flagV, hWait, ...
+                paramS.minIntensity.val, paramS.maxIntensity.val, paramS.binWidth.val);
         else
             [energy,entropy,sumAvg,corr,...
                 invDiffMom,contrast,clustShade,...
                 clustProminence,haralCorr] = textureByPatchCombineCooccur(volToEval,...
-                paramS.NumLevels.val, paramS.PatchSize.val, offsetsM, flagV);
+                paramS.NumLevels.val, paramS.PatchSize.val, offsetsM, flagV, NaN, ...
+                paramS.minIntensity.val, paramS.maxIntensity.val, paramS.binWidth.val);
         end
         
         outS.Energy = energy;
@@ -61,16 +77,25 @@ switch filterType
         
     case 'Wavelets'
         
-        [minr, maxr, minc, maxc, mins, maxs] = compute_boundingbox(mask3M);
+        % Use a margin of +/- 7 row/col/slcs
+        minr = max(1,minr-7);
+        maxr = min(origSiz(1),maxr+7);
+        minc = max(1,minc-7);
+        maxc = min(origSiz(2),maxc+7);
+        mins = max(1,mins-7);
+        maxs = min(origSiz(3),maxs+7);
         mask3M                   = mask3M(minr:maxr,minc:maxc,mins:maxs);
         scan3M                   = scan3M(minr:maxr,minc:maxc,mins:maxs);
         %Pad image if no. slices is odd
+        padFlag = 0;
         scan3M = flip(scan3M,3);
         if mod(size(scan3M,3),2) > 0
-            scan3M(:,:,end+1) = 0*scan3M(:,:,1);
+            scan3M(:,:,end+1) = min(scan3M(:))*scan3M(:,:,1).^0;
             mask3M(:,:,end+1) = 0*mask3M(:,:,1);
+            padFlag = 1;
         end
-        vol3M   = double(mask3M).*double(scan3M);
+        % vol3M   = double(mask3M).*double(scan3M);
+        vol3M   = double(scan3M);
         
         dirListC = {'All','HHH','LHH','HLH','HHL','LLH','LHL','HLL','LLL'};       
 %         wavFamilyC = {'Daubechies','Haar','Coiflets','FejerKorovkin','Symlets',...
@@ -86,7 +111,7 @@ switch filterType
 %             '3.7','3.9','4.4','5.5','6.8'},{'1.1','1.3','1.5','2.2','2.4','2.6',...
 %             '2.8','3.1','3.3','3.5','3.7','3.9','4.4','5.5','6.8'}};
 %         wavType =  [wavFamilyC{paramS.Wavelets.val},typeC{paramS.Wavelets.val}{paramS.Index.val}];
-        wavType =  [paramS.Wavelets.val,paramS.Index.val];
+        wavType =  [paramS.Wavelets.val,num2str(paramS.Index.val)];
         dir = paramS.Direction.val;
         
         
@@ -95,7 +120,7 @@ switch filterType
                 outname = [wavType,'_',dirListC{n}];
                 outname = strrep(outname,'.','_');
                 out3M = wavDecom3D(vol3M,dirListC{n},wavType);
-                if mod(size(out3M,3),2) > 0
+                if padFlag
                     out3M = out3M(:,:,1:end-1);
                 end
                 out3M = flip(out3M,3);
@@ -113,7 +138,7 @@ switch filterType
             outname = strrep(outname,'.','_');
             outname = strrep(outname,' ','_');
             out3M = wavDecom3D(vol3M,dir,wavType);
-            if mod(size(out3M,3),2) > 0
+            if padFlag
                 out3M = out3M(:,:,1:end-1);
             end
             out3M = flip(out3M,3);
@@ -125,8 +150,8 @@ switch filterType
             
         end
         
+        
     case 'Sobel'
-        [minr, maxr, minc, maxc, mins, maxs] = compute_boundingbox(mask3M);
         mask3M                   = mask3M(minr:maxr,minc:maxc,mins:maxs);
         scan3M                   = scan3M(minr:maxr,minc:maxc,mins:maxs);
         vol3M   = double(mask3M).*double(scan3M);
@@ -142,7 +167,6 @@ switch filterType
         %         toc
         
     case 'LoG'
-        [minr, maxr, minc, maxc, mins, maxs] = compute_boundingbox(mask3M);
         mask3M                   = mask3M(minr:maxr,minc:maxc,mins:maxs);
         scan3M                   = scan3M(minr:maxr,minc:maxc,mins:maxs);
         vol3M   = double(mask3M).*double(scan3M);
@@ -153,7 +177,6 @@ switch filterType
         end
         
     case 'Gabor'
-        [minr, maxr, minc, maxc, mins, maxs] = compute_boundingbox(mask3M);
         mask3M                   = mask3M(minr:maxr,minc:maxc,mins:maxs);
         scan3M                   = scan3M(minr:maxr,minc:maxc,mins:maxs);
         vol3M   = double(mask3M).*double(scan3M);
@@ -165,7 +188,6 @@ switch filterType
         end
         
     case 'FirstOrderStatistics'
-        [minr, maxr, minc, maxc, mins, maxs] = compute_boundingbox(mask3M);
         mask3M                   = mask3M(minr:maxr,minc:maxc,mins:maxs);
         scan3M                   = scan3M(minr:maxr,minc:maxc,mins:maxs);
         
@@ -196,7 +218,6 @@ switch filterType
         
     case 'LawsConvolution'
         
-                [minr, maxr, minc, maxc, mins, maxs] = compute_boundingbox(mask3M);
                 mask3M                   = mask3M(minr:maxr,minc:maxc,mins:maxs);
                 scan3M                   = scan3M(minr:maxr,minc:maxc,mins:maxs);
                 vol3M = double(mask3M).*double(scan3M);
@@ -226,7 +247,6 @@ switch filterType
         
     case 'CoLlage'
         
-        [minr, maxr, minc, maxc, mins, maxs] = compute_boundingbox(mask3M);
         mask3M = mask3M(minr:maxr,minc:maxc,mins:maxs);
         scan3M = scan3M(minr:maxr,minc:maxc,mins:maxs);
         scan3M = single(scan3M);
@@ -237,5 +257,12 @@ switch filterType
         
 end
 
+% make input/output dimensions same
+fieldNamC = fieldnames(outS);
+for i = 1:length(fieldNamC)
+    tempImg3M = NaN*ones(origSiz,'single');
+    tempImg3M(minr:maxr,minc:maxc,mins:maxs) = outS.(fieldNamC{i});
+    outS.(fieldNamC{i}) = tempImg3M;
+end
 
 end

@@ -12,6 +12,7 @@ function radiomicsParamS = getRadiomicsParamTemplate(paramFilename)
 % APA, 2/27/2019
 % AI, 3/22/19     Modified for compatibility with JSON input
 
+feature accel off
 
 %% Read JSON file
 userInS = jsondecode(fileread(paramFilename));
@@ -23,7 +24,10 @@ for m = 1:length(filterTypeC)
     paramListC = fieldnames(userInS.imageType.(filterTypeC{m}));
     radiomicsParamS.imageType.(filterTypeC{m}) = struct();
     for n = 1:length(paramListC)
-    radiomicsParamS.imageType.(filterTypeC{m}).(paramListC{n}).val = userInS.imageType.(filterTypeC{m}).(paramListC{n});
+        for iFilt = 1:length(userInS.imageType.(filterTypeC{m}))
+            radiomicsParamS.imageType.(filterTypeC{m})(iFilt).(paramListC{n}).val = ...
+                userInS.imageType.(filterTypeC{m})(iFilt).(paramListC{n});
+        end
     end
 end
 
@@ -99,6 +103,7 @@ whichFeatS = struct('resample',struct('flag',0),'perturbation',struct('flag',0),
 for k = 1:length(settingsC)
     fieldNamC = fieldnames(userInS.settings.(settingsC{k}));
     if ~isempty(fieldNamC)
+        whichFeatS.(settingsC{k}).flag = 1;
         for iField = 1:length(fieldNamC)
             whichFeatS.(settingsC{k}).(fieldNamC{iField}) = userInS.settings...
                 .(settingsC{k}).(fieldNamC{iField});
@@ -120,3 +125,5 @@ radiomicsParamS.whichFeatS = whichFeatS;
 
 %% Flag to quantize input data
 radiomicsParamS.toQuantizeFlag = 1;
+
+feature accel on
