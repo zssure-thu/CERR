@@ -31,6 +31,20 @@ function initFlag = init_ML_DICOM
 
 initFlag = 1;
 
+if isdeployed
+    path1 = fullfile(getCERRPath,'bin','dcm4che-2.0.27','lib','dcm4che-core-2.0.27.jar');
+    path2 = fullfile(getCERRPath,'bin','dcm4che-2.0.27','lib','log4j-1.2.16.jar');
+    path3 = fullfile(getCERRPath,'bin','dcm4che-2.0.27','lib','slf4j-api-1.6.1.jar');
+    path4 = fullfile(getCERRPath,'bin','dcm4che-2.0.27','lib','slf4j-log4j12-1.6.1.jar');
+    path5 = fullfile(getCERRPath,'bin','dcm4che-2.0.27','lib','dcm4che-image-2.0.27.jar');
+    path6 = fullfile(getCERRPath,'bin','dcm4che-2.0.27','lib','dcm4che-imageio-2.0.27.jar');
+    path7 = fullfile(getCERRPath,'bin','dcm4che-2.0.27','lib','dcm4che-imageio-rle-2.0.27.jar');
+    path8 = fullfile(getCERRPath,'bin','dcm4che-2.0.27','lib','dcm4che-iod-2.0.27.jar');
+    path9 = fullfile(getCERRPath,'bin','dcm4che-2.0.27','lib','dcm4che-net-2.0.27.jar');
+    javaaddpath({path1,path2,path3,path4,path5,path6,path7,path8,path9});
+    return
+end
+
 javaVersion = version('-java');
 if isempty(num2str(javaVersion(8))) || num2str(javaVersion(8)) < 5
     warndlg('The current MATLAB Java VM is not compatible. Please see Export documentation on how to update Java VM to Java 1.5.0_06');
@@ -69,9 +83,11 @@ else
 end
 
 if isempty(path1) || isempty(path2) || isempty(path3) || isempty(path4) || isempty(path5) || isempty(path6) || isempty(path7) || isempty(path8) || isempty(path9)
-    warndlg('File "dcm4che-core-2.0.25.jar" is not added to MATLAB path. Add the folder "dcm4che-2.0.25" to MATLAB path and start again');
+    warndlg('File "dcm4che-core-2.0.27.jar" is not added to MATLAB path. Add the folder "dcm4che-2.0.27" to MATLAB path and start again');
     initFlag = 0;
     return;
 else
     javaaddpath({path1,path2,path3,path4,path5,path6,path7,path8,path9});
 end
+
+

@@ -1,4 +1,4 @@
-function insertDCMStruct(planC,dcmFileName)
+function planC = insertDCMStruct(planC,dcmFileName)
 %
 %Insert structures from dcm file into the currently open planC.
 %
@@ -49,12 +49,29 @@ end
 
 dataS = populate_planC_field('structures', dcmdirS.PATIENT);
 
+% Tolerance to determine oblique scan (think about passing it as a
+% parameter in future)
+numScans = length(planC{indexS.scan});
+obliqTol = 1e-3;
+isObliqScanV = ones(1,numScans);
+
 % Check scan to associate the strucutres
 scanUIDc = {planC{indexS.scan}.scanUID};
-numScans = length(planC{indexS.scan});
 scanTypesC = {};
 for i = 1 : numScans
     scanTypesC{i} = [num2str(i) '.  ' planC{indexS.scan}(i).scanType];
+    
+    if isfield(planC{indexS.scan}(i).scanInfo(1),'DICOMHeaders') && ...
+            ~isempty(planC{indexS.scan}(i).scanInfo(1).DICOMHeaders)
+        ImageOrientationPatientV = planC{indexS.scan}(i).scanInfo(1).DICOMHeaders.ImageOrientationPatient;
+    else
+        ImageOrientationPatientV = [];
+    end
+    % Check for obliqueness
+    if ~isempty(ImageOrientationPatientV) && max(abs((abs(ImageOrientationPatientV) - [1 0 0 0 1 0]'))) <= obliqTol
+        isObliqScanV(i) = 0;
+    end
+    
 end
 
 % Return if not a valid RTStruct file
@@ -64,9 +81,13 @@ if isempty(dataS)
 end
 
 if ~ismember(dataS(1).assocScanUID,scanUIDc)
-    scanInd = listdlg('PromptString','Select Scan to associate structures',...
-        'SelectionMode','single',...
-        'ListString',scanTypesC);
+    if ~exist('dcmFileName','var')
+        scanInd = listdlg('PromptString','Select Scan to associate structures',...
+            'SelectionMode','single',...
+            'ListString',scanTypesC);
+    else
+        scanInd = 1;
+    end
     if ~isempty(scanInd)
         [dataS.assocScanUID] = deal(scanUIDc{scanInd});
     else
@@ -75,13 +96,29 @@ if ~ismember(dataS(1).assocScanUID,scanUIDc)
 end
 numStructs = length(planC{indexS.structures});
 for i=1:length(dataS)    
-    dataS(i) = sortStructures(dataS(i)); 
+    dataS(i) = sortStructures(dataS(i),isObliqScanV,planC); 
     colorNum = numStructs + i;
     if isempty(dataS(i).structureColor)
         color = stateS.optS.colorOrder( mod(colorNum-1, size(stateS.optS.colorOrder,1))+1,:);
         dataS(i).structureColor = color;
     end
 end
+%Find any structures in dataS not already in planC.
+toDeleteV = [];
+for i=length(dataS):-1:1
+%     newStructName = temp_planC{temp_planC{end}.structures}(i).structureName;
+    newStructData = dataS(i).contour;
+    for j=1:length(planC{planC{end}.structures})
+        oldStructName = planC{planC{end}.structures}(j).structureName;
+        oldStructData = planC{planC{end}.structures}(j).contour;
+        if isequal(newStructData, oldStructData)
+            disp(['Structure "',oldStructName,'" already exists. Duplicate structure will not be inserted.']);
+            toDeleteV = [toDeleteV, i];
+            break;
+        end
+    end
+end
+dataS(toDeleteV) = [];
 if ~isempty(planC{indexS.structures})
     for strNum = 1:length(dataS)
         planC{indexS.structures} = dissimilarInsert(planC{indexS.structures},dataS(strNum),length(planC{indexS.structures})+1);

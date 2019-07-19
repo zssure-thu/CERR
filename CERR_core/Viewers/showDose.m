@@ -107,7 +107,7 @@ axisInfo.doseObj(toRemove) = [];
 
 %Add a new image/dose data element for any doseNums that don't have one,
 %and cache the calculated dose and its coordinates.
-for i=1:length(doseSets);
+for i=1:length(doseSets)
     if isempty(axisInfo.doseObj) || ~ismember(doseSets(i), [axisInfo.doseObj(:).doseSet])
         compareMode  =  getappdata(hAxis,'compareMode');
         numObjs = length(axisInfo.doseObj);
@@ -295,7 +295,8 @@ for j=1:length(axisInfo.doseObj)
                 
                 doseSet = axisInfo.doseObj(j).doseSet;
                 hFrame = stateS.handle.controlFrame;
-                ud = get(hFrame,'userdata');
+                ud = stateS.handle.controlFrameUd ;
+
                 stateS.doseFusionColormap = '';
                 colormapIndex = [];
                 if stateS.imageRegistration && strcmpi(stateS.imageRegistrationBaseDatasetType,'dose') && stateS.imageRegistrationBaseDataset == doseSet
@@ -428,7 +429,8 @@ for j=1:length(axisInfo.doseObj)
                         end
                     else
                         
-                        [cData3M, xLim, yLim] = CERRDoseColorWash(hAxis, dose2M, doseXVals, doseYVals,  offset, [], [], [],dim);
+                        scanSet = [];
+                        [cData3M, xLim, yLim] = CERRDoseColorWash(hAxis, dose2M, doseXVals, doseYVals,  offset, [], [], [], scanSet);
                         
                         if stateS.imageRegistrationBaseDataset == doseSet && strcmpi(stateS.imageRegistrationBaseDatasetType, 'dose')
                             alpha = 1;
@@ -452,6 +454,13 @@ for j=1:length(axisInfo.doseObj)
         end
     end
 end
+
+if ~isempty(axisInfo.scanObj) && (isempty(axisInfo.doseObj) || ...
+        (~isempty(axisInfo.doseObj) && isempty(axisInfo.doseObj.data2M))) ...
+        && ~stateS.imageRegistration && ~isempty(axisInfo.scanObj.handles)
+    axisInfo.scanObj.handles.FaceAlpha = 1;
+end
+
 
 %set(hAxis, 'userdata', axisInfo);
 stateS.handle.aI(axInd) = axisInfo;

@@ -41,7 +41,9 @@ if ~exist('scanNumV','var')
 end
 
 if ~isfield(cerr_optS,'lowerLimitUniformCTSliceSpacing')
-    opt_S = CERROptions;
+    pathStr = getCERRPath;
+    optName = [pathStr 'CERROptions.m'];
+    opt_S = opts4Exe(optName);
     cerr_optS.lowerLimitUniformCTSliceSpacing = opt_S.lowerLimitUniformCTSliceSpacing;
     cerr_optS.upperLimitUniformCTSliceSpacing = opt_S.upperLimitUniformCTSliceSpacing;
     cerr_optS.alternateLimitUniformCTSliceSpacing = opt_S.alternateLimitUniformCTSliceSpacing;
@@ -70,11 +72,13 @@ hBar = waitbar(0, 'Creation of uniformized CT scan and structures...');
 planC = findAndSetMinCTSpacing(planC, cerr_optS.lowerLimitUniformCTSliceSpacing, cerr_optS.upperLimitUniformCTSliceSpacing, cerr_optS.alternateLimitUniformCTSliceSpacing,scanNumV);
 planC = uniformizeScanSupInf(planC, 0, 1/2, cerr_optS, hBar, scanNumV);
 
-if length(planC{indexS.structures}) ~= 0
+if ~isempty(planC{indexS.structures})
     for scanNum = scanNumV
         [indicesM, structBitsM, indicesC, structBitsC] = createStructuresMatrices(planC, scanNum, 1/2, 1, cerr_optS, hBar);
         planC = storeStructuresMatrices(planC, indicesM, structBitsM, indicesC, structBitsC, scanNum);
     end
 end
 
-close(hBar);
+if ishandle(hBar)
+    close(hBar);
+end

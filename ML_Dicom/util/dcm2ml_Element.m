@@ -1,4 +1,4 @@
-function data = dcm2ml_Element(el)
+function data = dcm2ml_Element(el,varargin)
 %"dcm2ml_element"
 %   Convert a Java SimpleDicomElement object into a Matlab datatype.
 %
@@ -53,14 +53,17 @@ cs = [];
 
 %Get the tag value as a char array.
 try
-    tag = char(org.dcm4che2.util.TagUtils.toString(el.tag));
+    %tag = char(org.dcm4che2.util.TagUtils.toString(el.tag));
+    tag = org.dcm4che2.util.TagUtils.toString(el.tag);
 catch
     data = '';
     return;
 end
 
 %Get the VR, cast to ML char array.
-vr = char(el.vr.toString);
+%vr = char(el.vr.toString);
+vr = cell(el.vr.toString);
+vr = vr{1};
 
 switch upper(vr)
     case 'AE'
@@ -100,9 +103,64 @@ switch upper(vr)
     case 'LT'
         data = char(el.getString(cs, buf));
     case 'OB'
-        data = el.getBytes;
+        %%%%%% Modified to import compressed data AI 02/06/17 %%%%%%%
+        txSyntax = varargin{1};
+        switch txSyntax
+            case {'1.2.840.10008.1.2.4.50'
+                    '1.2.840.10008.1.2.4.57'
+                    '1.2.840.10008.1.2.4.70'
+                    '1.2.840.10008.1.2.4.90'
+                    '1.2.840.10008.1.2.4.91'
+                    }
+                %Decompress JPEG frame
+                nElements = el.countItems;
+                %if nElements>2
+                %    warning(' dcm2ml_Element does not support multiple fragments');
+                %    return
+                %else
+                    data = [];
+                    for iFrag = 1:nElements
+                    fragment = typecast(el.getFragment(iFrag-1),'uint8');
+                    if ~isempty(fragment)
+                    fileName = getTempName;
+                    fid = fopen(fileName,'w');
+                    if (fid < 0)
+                        error('dcm2ml_element:Could not create temp file');
+                    end
+                    fwrite(fid,fragment,'uint8');
+                    fclose(fid);
+                    %tmp = onCleanup(@() delete(fileName));
+                    %dataTmpV = imread(fileName).';
+                    dataTmpV = imread(fileName);
+                    if ndims(dataTmpV) == 3
+                        dataTmpV = rgb2gray(dataTmpV); % temp for SM modality
+                    end
+                    dataTmpV = permute(dataTmpV,[2,1,3]);
+                    data = [data;dataTmpV(:)];
+                    end
+                    end
+                    delete(fileName)
+                %end
+                
+            case '1.2.840.10008.1.2.5'
+                
+                % To do: Decompress RLE frame
+                
+            case {'1.2.840.10008.1.2'  %Implicit VR Little Endian (default)
+                    '1.2.840.10008.1.2.1' %Explicit VR Little Endian
+                    '1.2.840.10008.1.2.2' %Explicit VR Big Endian
+                    '1.2.840.113619.5.2' %Implicit VR Big Endian (GE pvt)
+                    '1.3.46.670589.33.1.4.1'}%Explicit VR Little Endian (Philips pvt)
+                
+                data = el.getBytes;
+                
+            otherwise
+                error('dc2ml_Element : Encoding not supported');
+        end
+        %%%%%%%%%%%%%%%%%%% End Modified %%%%%%%%%%%%%%%%%%%%%
+        
     case 'OF'
-        data = el.getFloats(buf);        
+        data = el.getFloats(buf);
     case 'OW'
         %OW contains 16 bit words.  Conversion of this data into meaningful
         %values is the responsibility of the calling function.
@@ -164,3 +222,22 @@ else
         data = '';
     end
 end
+
+
+
+%% Function to generate temp filename
+function tempfile = getTempName()
+nFiles = 1;
+persistent tempfiles counter;
+if (isempty(tempfiles))
+    for p = 1:nFiles
+        tempfiles{p} = tempname;
+    end
+    
+    counter = 0;
+end
+counter = rem(counter, nFiles) + 1;
+tempfile = tempfiles{counter};
+
+
+

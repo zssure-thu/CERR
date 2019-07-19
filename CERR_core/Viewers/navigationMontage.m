@@ -54,20 +54,36 @@ end
 if ~exist('scanNum','var')
     hSwitchMenu = findobj('tag', 'switchScanMenu');
     scanItemListC = {hSwitchMenu.Children.Label};
-    nSubMenu= 0;
+    nGroupMenu = 0;
     selected = 0;
-    while nSubMenu < numel(hSwitchMenu.Children) && selected == 0
-        nSubMenu = nSubMenu + 1;
-        if ~isempty(hSwitchMenu.Children(nSubMenu).Children)
-             hSubMenu = hSwitchMenu.Children(nSubMenu).Children;
+    
+    while nGroupMenu < numel(hSwitchMenu.Children) && selected == 0
+        
+        nGroupMenu = nGroupMenu + 1;
+        hGroupMenu = hSwitchMenu.Children(nGroupMenu);
+        nSubMenu = 0;
+        if(numel(hGroupMenu.Children)==0) %When no. scans < maxScansPerGroup
+            hScan = hGroupMenu;
+            selectedScan = strcmp({hScan.Checked},'on');
+            selected = any(selectedScan);
         else
-             hSubMenu = hSwitchMenu.Children(nSubMenu);
+            while nSubMenu < numel(hGroupMenu.Children) && selected == 0
+                nSubMenu = nSubMenu + 1;
+                hSubMenu = hGroupMenu.Children(nSubMenu);
+                if ~isempty(hSubMenu.Children)
+                    hScan = hSubMenu.Children;
+                else
+                    hScan = hSubMenu;
+                end
+                selectedScan = strcmp({hScan.Checked},'on');
+                selected = any(selectedScan);
+            end
         end
-        selectedScan = strcmp({hSubMenu.Checked},'on');
-        selected = any(selectedScan);
     end
-    scanTag = get(hSubMenu(selectedScan),'Tag');
+    
+    scanTag = get(hScan(selectedScan),'Tag');
     scanNum = str2num(scanTag(9:end));
+    
     if ~isempty(f)
         ud = get(f,'userdata');
         ud.scanNum = scanNum;
@@ -75,6 +91,7 @@ if ~exist('scanNum','var')
         set(f,'userdata',ud);
         stateS.handle.navigationMontage = f;
     end
+    
 end
 
 try
@@ -157,31 +174,41 @@ switch lower(arg)
         %%% CHANGED  AI 9/2/16 
         %%Leave out empty structures from list - AI 9/2/16
         emptyStructIdxC = arrayfun(@(x)isempty(x.rasterSegments),planC{indexS.structures},'un',0);
-        structS = planC{indexS.structures}(~[emptyStructIdxC{:}]);
+        structsV = find(~[emptyStructIdxC{:}]);
+        structS = planC{indexS.structures}(structsV);
         toDraw = false(1,length(structS));
         structNum = varargin{1};
-        hNavStructs = ud.handle.navStructs;
-        currentStruct = strcmp(ud.structListC,['structureItem', num2str(structNum)]);
-        hStructItem = hNavStructs.Children(currentStruct);
+        hAssocScanV = ud.handle.navScans;
+        %Get selected scan set
+        selScan = strcmpi(get(hAssocScanV, 'Checked'), 'on');
+        %Get current structure
+        currentStruct = strcmp(ud.structListC{selScan},['structureItem', num2str(structNum)]);
+        hStructItem = hAssocScanV(selScan).Children(currentStruct);
         if strcmpi(get(hStructItem, 'Checked'), 'off')
             set(hStructItem, 'Checked', 'on')
         else
             set(hStructItem, 'Checked', 'off')
         end
+        hAssocScanV(selScan).Children(currentStruct) = hStructItem;
         
-        for i=1:length(structS)
-            structItemIdx = strcmp(ud.structListC,['structureItem', num2str(i)]);
-            hStruct = hNavStructs.Children(structItemIdx);
+        %Identify ROI slices
+        scanNum = hStructItem.UserData; 
+        associatedScanNumV = getStructureAssociatedScan(structsV, planC);
+        matchIdxV = find(associatedScanNumV == scanNum);
+        strListC = strcat('structureItem',cellfun(@num2str,num2cell(structsV(matchIdxV)),'un',0));
+        for i=1:length(strListC)
+            idx = strcmp(strListC,get(hAssocScanV(selScan).Children(i),'Tag'));
+            hStruct = hAssocScanV(selScan).Children(i);
             if strcmpi(get(hStruct, 'Checked'), 'on')
-                toDraw(i)= 1;
+                toDraw(matchIdxV(idx))= 1;
             end
         end
-        structsSelected = strcmpi({ud.handle.navStructs.Children.Checked},{'on'});
+        %Get selected structures
+        structsSelected = strcmpi({hAssocScanV(selScan).Children.Checked},{'on'});
         ud.strNum = find(toDraw);
         set(f,'userdata',ud);
         
         %Display scan associated with selected structure
-        scanNum = hNavStructs.Children(currentStruct).UserData; 
         if scanNum~=ud.scanNum && strcmpi(hStructItem.Checked,'on') 
         userSel = questdlg('Display navigation montage for scan associated with selected structure?','Switch scan',...
                            'Yes','No','No');
@@ -194,8 +221,9 @@ switch lower(arg)
                 ud = get(f,'userdata');
         end
         end
+
         if any(structsSelected)
-            [ud.handle.navStructs.Children(structsSelected).Checked] = deal('on');
+            [ud.handle.navScans(selScan).Children(structsSelected).Checked] = deal('on');
         end
         set(f,'userdata',ud); 
         drawDots(planC, ud.scanNum, stateS, f, toDraw);
@@ -541,7 +569,7 @@ switch lower(arg)
         
         drawMenu(f, planC,scanNum);
         drawBookmarkMenu(f, planC,scanNum)
-        drawScanMenu(f,scanNum); %CHANGED
+        hSwitchMenu = drawScanMenu(f,scanNum); %CHANGED
         stateS.navInfo.Axes = hAxis;
         set(handle,'buttondownfcn',['navigationMontage(''newSlice'',',num2str(scanNum),')'])
         stateS.handle.navigationMontage = f;
@@ -550,16 +578,22 @@ switch lower(arg)
         
         %Get structure list
         figMenuC = arrayfun(@(x) x.Tag,f.Children,'un',0);
+        ud = get(f,'userdata');
         hNavStructs = f.Children(strcmp(figMenuC,'navigationstructs'));
+        if ~isempty(hNavStructs)
+        hAssocScan = ud.handle.navScans;
         structListC = {};
-        if ~isempty(hNavStructs.Children)
-        structListC = {hNavStructs.Children.Tag};
+        if ~isempty(hAssocScan)
+            for k = 1:numel(hAssocScan)
+                structListC{k} = {hAssocScan(k).Children.Tag};
+            end
         end
         ud.structListC = structListC;
-        ud.handle.navStructs = hNavStructs;
-        hSwitchMenu = f.Children(strcmp(figMenuC,'switchScanMenu'));
-        scanItemListC = {hSwitchMenu.Children.Label};
+        scanItemListC = {hNavStructs.Children.Label};
         ud.scanListC = scanItemListC;
+        end
+        ud.handle.navStructs = hNavStructs;
+        f.Children(strcmp(figMenuC,'switchScanMenu')) = hSwitchMenu;
         ud.handle.switchScan = hSwitchMenu;
         set(f,'userdata',ud);
         stateS.handle.navigationMontage = f;
@@ -638,29 +672,52 @@ function drawMenu(hFigure, planC,scanNum)
 indexS = planC{end};
 ud = get(hFigure,'userdata');
 hStructMenu = findobj('tag', 'navigationstructs');
-%%Leave out empty structures from list - AI 9/2/16
+
+%Leave out empty structures 
 emptyStructIdxC = arrayfun(@(x)isempty(x.rasterSegments),planC{indexS.structures},'un',0);
-structS = planC{indexS.structures}(~[emptyStructIdxC{:}]);
+structsV = find(~[emptyStructIdxC{:}]);
+if isempty(structsV) %No structures available
+    return
+end
+
+
+structS = planC{indexS.structures}(structsV);
+
 %If structure list has changed or we arent initialized, redraw menu.
 if ~isempty(hStructMenu) & isempty(setxor(get(hStructMenu, 'userdata'), {structS.structureName}))
     return;
 else
+    %Get list of structures 
     structuresC = {structS.structureName};
-    associatedScanNumV = [structS.associatedScan];
-    associatedScanType = {planC{indexS.scan}(associatedScanNumV).scanType};
-    structureNameC =  strcat(structuresC,' (',associatedScanType,' )');
+    %Get list of unique associated scans
+    associatedScanNumV = getStructureAssociatedScan(structsV, planC);
+    uqScanV = unique(associatedScanNumV,'stable');
+    associatedScanType = {planC{indexS.scan}(uqScanV).scanType};
+    %Main structures menu
     if isempty(hStructMenu)
         hStructMenu = uimenu(hFigure, 'label', 'Structures', 'tag', 'navigationstructs', 'callback', 'navigationMontage(''redrawStructureMenu'')');
     end
     set(hStructMenu, 'userdata', structuresC);
     delete(get(hStructMenu, 'children'));
-    for i=1:length(structS);
-        uimenu(hStructMenu, 'label', structureNameC{i},'userdata', structS(i).associatedScan,...
-            'callback', ['navigationMontage(''structureSelect'',' num2str(scanNum),',', num2str(i) ');'], 'tag', ['structureItem' num2str(i)]);
+    %Add menu listing structures grouped by scan type
+    for i=1:numel(uqScanV)
+        %Scan type
+        hAssocScanV(i) = uimenu(hStructMenu, 'label',associatedScanType{i},...
+        'callback',@setCheckedScan);
+        matchIdxV = find(associatedScanNumV == uqScanV(i));
+        %Associated structures
+        for j = 1:numel(matchIdxV)
+            uimenu(hAssocScanV(i),'label',structuresC{matchIdxV(j)},'userdata',uqScanV(i),...
+                'callback', ['navigationMontage(''structureSelect'',' num2str(scanNum),',', num2str(structsV(matchIdxV(j))) ');'],...
+                'tag', ['structureItem' num2str(structsV(matchIdxV(j)))]);
+        end
     end
-    %%% END
+
     ud.handle.navStructs = hStructMenu;
+    ud.handle.navScans = hAssocScanV;
+
     set(hFigure,'userdata',ud);
+
 end
 
 function drawBookmarkMenu(hFigure, planC,scanNum)
@@ -669,13 +726,14 @@ hStructMenu = uimenu(hFigure, 'label', 'Bookmarks', 'tag', 'bookmarkMenu');
 uimenu(hStructMenu, 'label', 'Clear all', 'callback', ['navigationMontage(''clearbookmarks'',',num2str(scanNum),')']);
 uimenu(hStructMenu, 'label', 'Toggle on/off', 'callback', ['navigationMontage(''togglebookmark'',',num2str(scanNum),')']);
 
-function drawScanMenu(hFigure,scanNum)
+function hScanMenu = drawScanMenu(hFigure,scanNum)
 hScanMenu = uimenu(hFigure, 'label', 'Switch Scan', 'tag', 'switchScanMenu');
 addScansToMenu(hScanMenu,1,scanNum);
 state = 'On';
-markSelectedScan(hScanMenu,scanNum,state);
+hScanMenu = markSelectedScan(hScanMenu,scanNum,state);
 
-function markSelectedScan(hScanMenu,scanNum,state)
+
+function hScanMenu = markSelectedScan(hScanMenu,scanNum,state)
 %Mark selected scan as 'checked'
 subMenuNum = 0;
 selected = 0;
@@ -683,13 +741,23 @@ while subMenuNum < numel(hScanMenu.Children) && selected == 0
     subMenuNum = subMenuNum + 1;
     if ~isempty(hScanMenu.Children(subMenuNum).Children)
         hSubMenu = hScanMenu.Children(subMenuNum).Children;
+        selectedScan = strcmp({hSubMenu.Tag},['scanItem',num2str(scanNum)]);
+        selected = any(selectedScan);
+        if any(selected)
+        set(hSubMenu(selectedScan),'checked',state);
+        hScanMenu.Children(subMenuNum).Children = hSubMenu; 
+        end
     else
         hSubMenu = hScanMenu.Children(subMenuNum);
+        selectedScan = strcmp({hSubMenu.Tag},['scanItem',num2str(scanNum)]);
+        selected = any(selectedScan);
+        if any(selected)
+        set(hSubMenu(selectedScan),'checked',state);
+        hScanMenu.Children(subMenuNum) = hSubMenu;
+        end
     end
-    selectedScan = strcmp({hSubMenu.Tag},['scanItem',num2str(scanNum)]);
-    selected = any(selectedScan);
 end    
-set(hSubMenu(selectedScan),'checked',state);
+
     
 %--------------------------------%
 function drawDots(planC, scanNum, stateS, hFigure, userData)
@@ -733,3 +801,12 @@ for i=1:z
         end
     end
 end
+
+
+    function setCheckedScan(hObj,~)
+        hAssocScanV = hObj.Parent.Children;
+        set(hAssocScanV,'checked','off');
+        set(hObj,'Checked','on');
+        
+
+ 

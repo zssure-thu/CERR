@@ -578,19 +578,26 @@ if ~isempty(in_str)
                     % Pass variable to "goto" command
                     goto('max')
                     
-                elseif numWords == 4
-                    
+                elseif numWords > 3
+                    if numWords==4
                     w4 = word(in_str,4);
                     w4 = str2num(w4); % only numeric data type supported
                     goto(w3,w4)
-
-                else
                     
+                    elseif strcmpi(word(in_str,5),'all')
+                    w4 = word(in_str,4);
+                    w4 = str2num(w4); % only numeric data type supported
+                    w5 = word(in_str,5);
+                    goto(w3,w4,w5)
+
+                    else
                     % Get the slice number passed
                     num = str2num(word(in_str,3));
 
                     % Pass variable to "goto" command
                     goto('slice',num);
+                    end
+                    
                 end
 
             case 'mask'  %show a spy mask of values included in an ROI
@@ -842,7 +849,7 @@ if ~isempty(in_str)
                             end
                         end
                         
-                    else
+                    elseif ~strcmpi(view,'legend')
                         
                         h = plot(xV,yV,'marker','.','markersize', 5, 'linestyle','none','color',structColor, 'parent', hAxis, 'tag', 'ROIMask', 'hittest', 'off');
                         stateS.handle.mask = [stateS.handle.mask, h];
@@ -1356,7 +1363,19 @@ if ~isempty(in_str)
                 disp(['gEUD = ',num2str(gEUD)])
                 disp('----------------------')
                 return
-
+                
+            case 'addguide'
+                num = str2double(word(in_str,2));
+                if isempty(word(in_str,4))
+                    units = [];
+                    view = word(in_str,3);
+                else
+                    units = word(in_str,3);
+                    view = word(in_str,4);
+                end
+                showPlaneLocators(num,units,view);
+                
+                
             otherwise
 
 

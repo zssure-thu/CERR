@@ -1,4 +1,4 @@
-function [slcC, sliceXVals, sliceYVals] = getStructureSlice(scanSet, dim, coord, transM)
+function [slcC, sliceXVals, sliceYVals] = getStructureSlice(scanSet, dim, coord, transM, planC)
 %"getStructureSlice"
 %   Return a slice of scanSet's uniformized data, in dimension
 %   dim (x,y,z = 1,2,3) at coordinate coord.  If the scanSet has
@@ -35,7 +35,9 @@ function [slcC, sliceXVals, sliceYVals] = getStructureSlice(scanSet, dim, coord,
 % You should have received a copy of the GNU General Public License
 % along with CERR.  If not, see <http://www.gnu.org/licenses/>.
 
+if ~exist('planC','var')
 global planC
+end
 
 indexS = planC{end};
 
@@ -142,7 +144,7 @@ if rotation
     yVec = [yV(maxY) yV(2)-yV(1) yV(minY)];
     zVec = zV(minZ:maxZ);
     
-    saNum = getScanAssociatedStructureArray(scanSet);
+    saNum = getScanAssociatedStructureArray(scanSet,[],planC);
     
     %Get bits for structures less than or equal to 52
     indicesM = planC{indexS.structureArray}(saNum).indicesArray;
@@ -252,7 +254,7 @@ else %Rotation is not required, use simple linear interpolation.
     yV = yV + yT;
     zV = zV + zT;
     
-    saNum = getScanAssociatedStructureArray(scanSet);
+    saNum = getScanAssociatedStructureArray(scanSet,[],planC);
     
     %Get bits for structures less than or equal to 52
     
@@ -280,7 +282,7 @@ else %Rotation is not required, use simple linear interpolation.
         case 3
             slice = interp1(zV, 1:length(zV), coord);
             uniDim = 3; otherDims = [1 2];
-            sliceMatrix = zeros(length(xV), length(yV));
+            sliceMatrix = zeros(length(yV), length(xV));
             sliceXVals = xV; sliceYVals = yV;
     end
     slice = round(slice);

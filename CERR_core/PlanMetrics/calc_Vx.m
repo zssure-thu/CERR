@@ -4,9 +4,7 @@ function ans = calc_Vx(doseBinsV, volsHistV, doseCutoff, volumeType)
 %  
 %  MODIFICATION ALERT:  THIS FUNCTION IS UTILIZED BY THE DREXLER CODEBASE
 %
-%  Last modified: AJH 11/05
-%
-%  Usage: calc_Vx(doseBinsV, volsHistV, percent)
+%  Usage: calc_Vx(doseBinsV, volsHistV, doseCutoff, volumeType)
 %
 % volumeType
 %  1 = fractional
@@ -34,30 +32,53 @@ function ans = calc_Vx(doseBinsV, volsHistV, doseCutoff, volumeType)
 % You should have received a copy of the GNU General Public License
 % along with CERR.  If not, see <http://www.gnu.org/licenses/>.
 
+if isstruct(doseCutoff)  %for use with ROE
+    temp = doseCutoff;
+    volumeType = temp.volumeType.val;
+    doseCutoff = temp.x.val;
+end
+
 
 if ~exist('volumeType')
     volumeType = 0;
 end
 
+% Add 0 to the beginning to account for the fact that the first bin must
+% correspond to the entire volume.
+volsHistV = [0 volsHistV];
 cumVolsV = cumsum(volsHistV);
 cumVols2V  = cumVolsV(end) - cumVolsV;
-ind = min(find([doseBinsV >= doseCutoff]));
+ind = find(doseBinsV >= doseCutoff, 1 );
 
-if(doseCutoff==0)
-    ans=cumVolsV(end);
-else 
-    if isempty(ind)
-        ans = 0;
-    else
-        ans = cumVols2V(ind);
-    end
-end  
+if isempty(ind)
+    ans = 0;
+else
+    ans = cumVols2V(ind);
+end
+
+% if(doseCutoff==0)
+%     ans=cumVolsV(end);
+% else 
+%     if isempty(ind)
+%         ans = 0;
+%     else
+%         ans = cumVols2V(ind);
+%     end
+% end  
 
 if(volumeType == 1)
     ans = ans/cumVolsV(end);
 else
-    warning('Vx is being calculated in absolute terms.');
+    %warning('Vx is being calculated in absolute terms.');
 end
+
+%% ------ TESTING----
+%1. for testing when BMI=22 and for NTCP=0.5, V99 = 107.1067cc ----
+%ans = ans * 107.1067/cumVolsV(end);
+
+%2. for testing when BMI=22 and for NTCP=0.1, V99 = 1.2753cc ----
+%ans = ans * 1.2753/cumVolsV(end);
+%-------------------------------------------------------------------
 
 return;
 

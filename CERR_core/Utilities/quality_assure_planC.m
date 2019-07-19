@@ -31,21 +31,21 @@ if ~isempty(str2double(lastSavedInVer)) && (isempty(lastSavedInVer) || str2doubl
 end
 
 
-%Check for mesh representation and load meshes into memory
-currDir = cd;
-meshDir = fileparts(which('libMeshContour.dll'));
-cd(meshDir)
-for strNum = 1:length(planC{indexS.structures})
-    if isfield(planC{indexS.structures}(strNum),'meshRep') && ~isempty(planC{indexS.structures}(strNum).meshRep) && planC{indexS.structures}(strNum).meshRep
-        try
-            calllib('libMeshContour','loadSurface',planC{indexS.structures}(strNum).strUID,planC{indexS.structures}(strNum).meshS)
-        catch
-            planC{indexS.structures}(strNum).meshRep    = 0;
-            planC{indexS.structures}(strNum).meshS      = [];
-        end
-    end
-end
-cd(currDir)
+% %Check for mesh representation and load meshes into memory
+% currDir = cd;
+% meshDir = fileparts(which('libMeshContour.dll'));
+% cd(meshDir)
+% for strNum = 1:length(planC{indexS.structures})
+%     if isfield(planC{indexS.structures}(strNum),'meshRep') && ~isempty(planC{indexS.structures}(strNum).meshRep) && planC{indexS.structures}(strNum).meshRep
+%         try
+%             calllib('libMeshContour','loadSurface',planC{indexS.structures}(strNum).strUID,planC{indexS.structures}(strNum).meshS)
+%         catch
+%             planC{indexS.structures}(strNum).meshRep    = 0;
+%             planC{indexS.structures}(strNum).meshS      = [];
+%         end
+%     end
+% end
+% cd(currDir)
 
 if ~isfield(stateS,'optS')
     stateS.optS = CERROptions;
@@ -64,16 +64,20 @@ for scanNum = 1:length(planC{indexS.scan})
         end
     end
     % Check for scanType field and populate it with Series description
-    if isempty(planC{indexS.scan}(scanNum).scanType) && isfield(planC{indexS.scan}(scanNum).scanInfo(1).DICOMHeaders,'SeriesDescription')
+    if isempty(planC{indexS.scan}(scanNum).scanType) && ...
+            isfield(planC{indexS.scan}(scanNum).scanInfo(1),'DICOMHeaders') && ...
+            isfield(planC{indexS.scan}(scanNum).scanInfo(1).DICOMHeaders,'SeriesDescription')
         planC{indexS.scan}(scanNum).scanType = planC{indexS.scan}(scanNum).scanInfo(1).DICOMHeaders.SeriesDescription;
     end
 end
 
 %Check dose-grid
 for doseNum = 1:length(planC{indexS.dose})
+    if length(planC{indexS.dose}(doseNum).zValues) > 1
     if planC{indexS.dose}(doseNum).zValues(2) - planC{indexS.dose}(doseNum).zValues(1) < 0
         planC{indexS.dose}(doseNum).zValues = flipud(planC{indexS.dose}(doseNum).zValues);
         planC{indexS.dose}(doseNum).doseArray = flipdim(planC{indexS.dose}(doseNum).doseArray,3);
+    end
     end
 end
 
@@ -100,20 +104,42 @@ if length(planC{indexS.structureArrayMore}) ~= length(planC{indexS.structureArra
     end
 end
 
-%Check DSH Points for old CERR versions
-if ~isfield(planC{indexS.header},'CERRImportVersion') || (isfield(planC{indexS.header},'CERRImportVersion') && isempty(planC{indexS.header}.CERRImportVersion))
-    CERRImportVersion = '0';
-else
+% Get CERR version of last save
+if isfield(planC{indexS.header},'lastSavedInVer') && ~isempty(planC{indexS.header}.lastSavedInVer)
+    CERRImportVersion = planC{indexS.header}.lastSavedInVer;
+elseif isfield(planC{indexS.header},'CERRImportVersion') && ~isempty(planC{indexS.header}.CERRImportVersion)
     CERRImportVersion = planC{indexS.header}.CERRImportVersion;
+else
+    CERRImportVersion = '0';
 end
-
+    
+%Check DSH Points for old CERR versions
 if str2num(CERRImportVersion(1)) < 4
+    bug_found = 1;
     for structNum = 1:length(planC{indexS.structures})
         if ~isempty(planC{indexS.structures}(structNum).DSHPoints)
             planC = getDSHPoints(planC, stateS.optS, structNum);
         end
     end
 end
+
+% Fix RTOG orientation for HFP scans
+if str2num(strtok(CERRImportVersion, ',')) < 5.2
+    for scanNum = 1:length(planC{indexS.scan})
+        if isfield(planC{indexS.scan}(scanNum).scanInfo(1),'DICOMHeaders') ...
+                && ~isempty(planC{indexS.scan}(scanNum).scanInfo(1).DICOMHeaders) ...
+                && isfield(planC{indexS.scan}(scanNum).scanInfo(1).DICOMHeaders,'PatientPosition')
+            pPos = planC{indexS.scan}(scanNum).scanInfo(1).DICOMHeaders.PatientPosition;
+        else
+            pPos = '';
+        end
+        if strcmpi(pPos,'HFP')
+            planC = flipAlongX(scanNum, planC);
+            bug_found = 1;
+        end
+    end
+end
+
 
 % Check for GSPS and make it empty if no objects are present
 if length(planC{indexS.GSPS}) == 1 && isempty(planC{indexS.GSPS}.SOPInstanceUID)

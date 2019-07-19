@@ -62,10 +62,10 @@ gsps    = planD{indexSD.GSPS};
 if (exist('scanIndV') & strcmpi(scanIndV, 'all')) | ~exist('scanIndV')
     scanIndV = 1:length(scans);
 end
-if (exist('doseIndV') & strcmpi(scanIndV, 'all')) | ~exist('doseIndV')
+if (exist('doseIndV') & strcmpi(doseIndV, 'all')) | ~exist('doseIndV')
     doseIndV = 1:length(doses);
 end
-if (exist('structIndV') & strcmpi(scanIndV, 'all')) | ~exist('structIndV')
+if (exist('structIndV') & strcmpi(structIndV, 'all')) | ~exist('structIndV')
     structIndV = 1:length(structs);
 end
 
@@ -106,7 +106,7 @@ scansWithSameUID   = ismember(addedScanUIDc,existingScanUIDc);
 dosesWithSameUID   = ismember(addedDoseUIDc,existingDoseUIDc);
 structsWithSameUID = ismember(addedStructureUIDc,existingStructureUIDc);
 
-if any(scansWithSameUID)
+if any(scansWithSameUID) && ~isempty(scanIndV)
     oldScanUIc = {scans.scanUID};
     for scanNum = 1:length(planD{indexSD.scan})
         scans(scanNum).scanUID = createUID('scan');
@@ -115,13 +115,13 @@ if any(scansWithSameUID)
     scansWithSameUID = 0;
     
     % Change the associated scanUID fields for dose and structures
-    for iDose = 1:nDose
+    for iDose = 1:length(doses)
         indMatch = find(strcmp(doses(iDose).assocScanUID,oldScanUIc));
         if ~isempty(indMatch)
             doses(iDose).assocScanUID = newScanUIc{indMatch};
         end
     end
-    for iStr = 1:nStructs
+    for iStr = 1:length(structs)
         indMatch = find(strcmp(structs(iStr).assocScanUID,oldScanUIc));
         if ~isempty(indMatch)
             structs(iStr).assocScanUID = newScanUIc{indMatch};
@@ -159,21 +159,21 @@ for scanNum = 1:length(planD{indexSD.scan})
     end
 end
 
-%Check for mesh representation and load meshes into memory
-currDir = cd;
-meshDir = fileparts(which('libMeshContour.dll'));
-cd(meshDir)
-for strNum = 1:length(structs)
-    if isfield(structs(strNum),'meshRep') && ~isempty(structs(strNum).meshRep) && structs(strNum).meshRep
-        try
-            calllib('libMeshContour','loadSurface',structs(strNum).strUID,structs(strNum).meshS)
-        catch
-            structs(strNum).meshRep    = 0;
-            structs(strNum).meshS      = [];
-        end
-    end
-end
-cd(currDir)
+% %Check for mesh representation and load meshes into memory
+% currDir = cd;
+% meshDir = fileparts(which('libMeshContour.dll'));
+% cd(meshDir)
+% for strNum = 1:length(structs)
+%     if isfield(structs(strNum),'meshRep') && ~isempty(structs(strNum).meshRep) && structs(strNum).meshRep
+%         try
+%             calllib('libMeshContour','loadSurface',structs(strNum).strUID,structs(strNum).meshS)
+%         catch
+%             structs(strNum).meshRep    = 0;
+%             structs(strNum).meshS      = [];
+%         end
+%     end
+% end
+% cd(currDir)
 
 %Check dose-grid
 for doseNum = 1:length(doses)
@@ -256,37 +256,40 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Just to customize input
-ansBtnDS = '';
-if isempty(scanIndV) & ~isempty(doseIndV) & ~isempty(structIndV)
-
-    ansBtnDS = questdlg('Do you want to Change scan association for Dose and Structures','Scan Association','Yes','No','Yes');
-
-elseif isempty(scanIndV) & isempty(doseIndV) & ~isempty(structIndV)
-
-    ansBtnDS = questdlg('Do you want to Change scan association for Structures','Scan Association','Yes','No','Yes');
-end
-
-% If answer is Yes
-if strcmp(ansBtnDS,'Yes')
-    if nScans == 1
-        whichScan = 1;
-    else
-        prompt={['Enter one of the Scan Number b/w ' num2str(1 : nScans) ' to associate this data with']};
-        def={'1'};
-        dlgTitle = 'Pick Associated Scan Number';
-        lineNo=1;
-        whichScan = inputdlg(prompt,dlgTitle,lineNo,def);
-        whichScan = str2num(whichScan{:});
-    end
+if isempty(scanIndV) && nScans == 1
+    whichScan = 1;
     whichScanUID = planC{indexSC.scan}(whichScan).scanUID;
 else
-    whichScan = [];
-    whichScanUID = [];
-    %Must include associated scans of any structures being merged.
-    scanIndV = sort(union(scanIndV, assocScansV));
+    ansBtnDS = '';
+    if isempty(scanIndV) & ~isempty(doseIndV) & ~isempty(structIndV)
+        
+        ansBtnDS = questdlg('Do you want to Change scan association for Dose and Structures','Scan Association','Yes','No','Yes');
+        
+    elseif isempty(scanIndV) & isempty(doseIndV) & ~isempty(structIndV)
+        
+        ansBtnDS = questdlg('Do you want to Change scan association for Structures','Scan Association','Yes','No','Yes');
+    end
+    
+    % If answer is Yes
+    if strcmp(ansBtnDS,'Yes')
+        if nScans == 1
+            whichScan = 1;
+        else
+            prompt={['Enter one of the Scan Number b/w ' num2str(1 : nScans) ' to associate this data with']};
+            def={'1'};
+            dlgTitle = 'Pick Associated Scan Number';
+            lineNo=1;
+            whichScan = inputdlg(prompt,dlgTitle,lineNo,def);
+            whichScan = str2num(whichScan{:});
+        end
+        whichScanUID = planC{indexSC.scan}(whichScan).scanUID;
+    else
+        whichScan = [];
+        whichScanUID = [];
+        %Must include associated scans of any structures being merged.
+        scanIndV = sort(union(scanIndV, assocScansV));
+    end
 end
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 scanIndV   = setdiff(scanIndV,scansWithSameUID);
 doseIndV   = setdiff(doseIndV,dosesWithSameUID);
@@ -302,6 +305,7 @@ end
 
 %Filter the actual structArray by structs to include.
 structs = structs(structIndV);
+oldStructAssocScanUidC = {structs.assocScanUID};
 
 %Add structs to planC, modifying name and associatd scan.
 for i=1:length(structs)
@@ -321,7 +325,7 @@ end
 scans = scans(scanIndV);
 
 % reuniformize scan if new structures are added.
-matchingScanUIDs = ismember({structs.assocScanUID},{planC{indexSC.scan}.scanUID, scans.scanUID});
+matchingScanUIDs = ismember(oldStructAssocScanUidC,{planC{indexSC.scan}.scanUID, scans.scanUID});
 if ~all(matchingScanUIDs)   
     structuresToUniformize = nStructs + find(~matchingScanUIDs);
     for iUniformize = 1:length(structuresToUniformize)

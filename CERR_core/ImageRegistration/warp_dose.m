@@ -19,13 +19,26 @@ movDoseUniqName = [movDoseUID,num2str(randPart)];
 movDoseFileName = fullfile(getCERRPath,'ImageRegistration','tmpFiles',['movDose_',movDoseUniqName,'.mha']);
 
 % Write .mha file for this dose
-success = createMhaDosesFromCERR(movDoseNum, movDoseFileName, planC);
+success = createMhaDosesFromCERR(movDoseNum, movDoseFileName, movPlanC);
 
 % Generate name for the output .mha file
 warpedMhaFileName = fullfile(getCERRPath,'ImageRegistration','tmpFiles',['warped_dose_',baseScanUID,'_',movScanUID,'.mha']);
 
+% Switch to plastimatch directory if it exists
+prevDir = pwd;
+plmCommand = 'plastimatch warp ';
+optName = fullfile(getCERRPath,'CERROptions.json');
+optS = opts4Exe(optName);
+if exist(optS.plastimatch_build_dir,'dir') && isunix
+    cd(stateS.optS.plastimatch_build_dir)
+    plmCommand = ['./',plmCommand];
+end
+
 % Issue plastimatch warp command with nearest neighbor interpolation
-system(['plastimatch warp --input ', escapeSlashes(movDoseFileName), ' --output-img ', escapeSlashes(warpedMhaFileName), ' --xf ', escapeSlashes(bspFileName)])
+fail = system([plmCommand, '--input ', movDoseFileName, ' --output-img ', warpedMhaFileName, ' --xf ', bspFileName]);
+if fail % try escaping slashes
+    system([plmCommand, '--input ', escapeSlashes(movDoseFileName), ' --output-img ', escapeSlashes(warpedMhaFileName), ' --xf ', escapeSlashes(bspFileName)])
+end
 
 % Read the warped output .mha file within CERR
 %infoS  = mha_read_header(warpedMhaFileName);
@@ -41,4 +54,5 @@ try
     delete(bspFileName)
 end
 
-
+% Switch back to the previous directory
+cd(prevDir)

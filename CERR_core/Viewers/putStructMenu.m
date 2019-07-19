@@ -61,7 +61,10 @@ else
     
     %Call up editStructures
     uimenu(hStructMenu, 'label', 'Contouring', 'callback',['sliceCallBack(''contourMode'')'],'interruptible','on', 'separator', 'on');
-
+    
+    %One element for Segment Labeler
+    uimenu(hStructMenu, 'label', 'Segment Labeler', 'callback','segmentLabelerControl(''segmentLabeler'', ''init'');','interruptible','on');
+    
     %Call up editStructures
     %     uimenu(hStructMenu, 'label', 'Add/Edit structures', 'callback',['editStructFields'],'interruptible','on');
 
@@ -103,7 +106,7 @@ end
 %Find and remove old structure listings.
 kids = get(hStructMenu, 'children');
 numOldMenus = length(kids);
-delete(kids(1:numOldMenus-6));
+delete(kids(1:numOldMenus-7));
 
 [assocScansV, relStructNum] = getStructureAssociatedScan(1:numStructs, planC);
 allScans = unique(assocScansV);
@@ -113,7 +116,11 @@ for i = 1:length(allScans)
         strSep = 'on';
     end
 
-    hStrSetPannel(i)= uimenu(hStructMenu, 'label', ['Structure Set ' num2str(allScans(i))], 'callback','','interruptible','on', 'Separator', strSep);
+    scanType = planC{indexS.scan}(allScans(i)).scanType; 
+    if isempty(scanType)
+        scanType = ['Scan ', num2str(allScans(i))];
+    end
+    hStrSetPannel(i)= uimenu(hStructMenu, 'label', [num2str(allScans(i)), '. ', scanType], 'callback','','interruptible','on', 'Separator', strSep);
 
     scanIndxV = find(assocScansV == allScans(i));
 

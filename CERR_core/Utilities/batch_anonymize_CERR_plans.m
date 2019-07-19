@@ -39,7 +39,7 @@ feature accel off
 
 anonymize_file_name_flag = 1; % 1:anonymize file name with research number, 0: retain file name.
 researchNumber = 1000; %naming will start with this number + 3.
-replacementName = 'FCCC';
+replacementName = 'LungDoseResponse';
 
 persistent convertedC planNameC
 if isempty(varargin)
@@ -91,13 +91,14 @@ for dirNum = 1:length(allDirS)
             planC = loadPlanC(fileName, tempdir);
             
             %Anonymize
-            PHI = {'studyNumberOfOrigin','PatientName','caseNumber','archive','PatientID'};
+            PHI = {'studyNumberOfOrigin','PatientName','caseNumber','archive','PatientID','scanDate','DICOMHeaders'};
             
             if ~isempty(replacementName)
                 
                 for i = 1 : length(PHI)
                     str = PHI{i};
-                    planC = anonymize(planC,str,replacementName);
+                    %planC = anonymize(planC,str,replacementName);
+                    planC = anonCERRplanC(planC);
                 end
                 
             end
@@ -105,7 +106,7 @@ for dirNum = 1:length(allDirS)
             
             %Check for duplicate name of sourceDirName
             if anonymize_file_name_flag
-                newFileName = [num2str(researchNumber),extStr2,extStr];
+                newFileName = [num2str(researchNumber),extStr];
             else
                 sourceDirName = sourceDir;
                 dirOut = dir(destinationDir);
@@ -141,12 +142,8 @@ for dirNum = 1:length(allDirS)
         batch_anonymize_CERR_plans(fullfile(sourceDir,allDirS(dirNum).name),destinationDir)
     end    
 end
-if isempty(varargin)
-    for i=1:length(convertedC)
-        xlswrite(fullfile(destinationDir,'batch_convert_results.xls'),{convertedC{i}},'Sheet1',['A',num2str(i)])
-        xlswrite(fullfile(destinationDir,'batch_convert_results.xls'),{planNameC{i}},'Sheet1',['B',num2str(i)])
-        xlswrite(fullfile(destinationDir,'batch_convert_results.xls'),{researchNumberC{i}},'Sheet1',['C',num2str(i)])
-    end
-end
-end
 
+% Save keys to Excel file
+xlswrite(fullfile(destinationDir,'batch_convert_results.xls'),convertedC','Sheet1','A1')
+xlswrite(fullfile(destinationDir,'batch_convert_results.xls'),planNameC','Sheet1','B1')
+xlswrite(fullfile(destinationDir,'batch_convert_results.xls'),researchNumberC','Sheet1','C1')

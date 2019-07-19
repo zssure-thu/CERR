@@ -1,11 +1,12 @@
 function batchConvert(varargin)
-%function batchConvert(sourceDir,destinationDir,zipFlag)
+%function batchConvert(sourceDir,destinationDir,zipFlag,mergeScansFlag)
 %
 %Type "init_ML_DICOM; batchConvert" (without quotes) in Command window to run batch conversion. User will be
 %prompted to select source and destination directories. This function converts DICOM and RTOG files 
 %under sourceDir and subdirectories to CERR format and places them in destinationDir.
 %
 %APA, 01/22/2009
+% AI, 05/26/17 Added mergeScansFlag
 %
 % Copyright 2010, Joseph O. Deasy, on behalf of the CERR development team.
 % 
@@ -34,7 +35,8 @@ function batchConvert(varargin)
 % sourceDir = 'J:\bioruser\apte\batch code';
 % destinationDir = 'J:\bioruser\apte\batch code\OUT';
 % zipFlag = 'No';
-% batchConvert(sourceDir,destinationDir,zipFlag)
+% mergeScansFlag = 'No';
+% batchConvert(sourceDir,destinationDir,zipFlag,mergeScansFlag)
 
 feature accel off
 
@@ -52,12 +54,14 @@ if isempty(varargin)
         return;
     end
     zipFlag = questdlg('Do you want to bz2 zip output CERR files?', 'bz2 Zip files?', 'Yes','No','No');
+    mergeScansFlag = [];
 else    
     convertedC = {'Source Directory:'};
     planNameC = {'Converted Plan Name:'};    
     sourceDir = varargin{1};
     destinationDir = varargin{2};
     zipFlag = varargin{3};
+    mergeScansFlag = varargin{4};
 end
 
 if ispc
@@ -148,25 +152,28 @@ for dirNum = 1:length(allDirS)
                         end
                     end
                     % Pass the java dicom structures to function to create CERR plan
-                    planC = dcmdir2planC(combinedDcmdirS);
+                    planC = dcmdir2planC(combinedDcmdirS,mergeScansFlag); 
                 else
                     planC = dcmdir2planC(patient.PATIENT);
-                end                
-                rtStartIndex = findstr(sourceDir,[slashType,'RT']);                
-                if isempty(rtStartIndex)
-                    rtStartIndex = slashIndex(end)+1;
-                    rtEndIndex = length(sourceDir);
-                else
-                    rtStartIndex = rtStartIndex(end);
-                    rtEndIndex = slashIndex(find(slashIndex>rtStartIndex));
-                    rtStartIndex = rtStartIndex+1;
-                    if isempty(rtEndIndex)
-                        rtEndIndex = length(sourceDir);
-                    else
-                        rtEndIndex = rtEndIndex - 1;
-                    end
-                end
+                end       
+%                 % For TopModule/Metropolis plans that are named as
+%                 RT000000...
+%                 rtStartIndex = findstr(sourceDir,[slashType,'RT']);                
+%                 if isempty(rtStartIndex)
+%                     rtStartIndex = slashIndex(end)+1;
+%                     rtEndIndex = length(sourceDir);
+%                 else
+%                     rtStartIndex = rtStartIndex(end);
+%                     rtEndIndex = slashIndex(find(slashIndex>rtStartIndex));
+%                     rtStartIndex = rtStartIndex+1;
+%                     if isempty(rtEndIndex)
+%                         rtEndIndex = length(sourceDir);
+%                     else
+%                         rtEndIndex = rtEndIndex - 1;
+%                     end
+%                 end
                 oneDirUp = sourceDir(slashIndex(end-1)+1:slashIndex(end)-1);
+                twoDirUp = sourceDir(slashIndex(end-2)+1:slashIndex(end-2+1)-1);
 %                 % For Metropolis with all plans per patient
 %                 sourceDirName = [oneDirUp,'_',sourceDir(rtStartIndex:rtEndIndex)];
 %                 % For Metropolis with one plan per patient
@@ -187,7 +194,10 @@ for dirNum = 1:length(allDirS)
 %                 seriesName = sourceDir(slashIndex(end-0)+1:end);
 %                 sourceDirName = fullfile(modality, pre_post, [mrn,'~',seriesName]);
 %                 % General case
-                sourceDirName = sourceDir(rtStartIndex:rtEndIndex);
+                % sourceDirName = sourceDir(rtStartIndex:rtEndIndex);
+                [~,sourceDirName] = fileparts(sourceDir);
+                %sourceDirName = strtok(sourceDirName,'_');
+                %sourceDirName = [oneDirUp,'_',sourceDirName];
                 
                 %Check for duplicate name of sourceDirName
                 dirOut = dir(destinationDir);
@@ -220,7 +230,7 @@ for dirNum = 1:length(allDirS)
             end
         end
     elseif allDirS(dirNum).isdir && ~strcmp(allDirS(dirNum).name,'.') && ~strcmp(allDirS(dirNum).name,'..')
-        batchConvert(fullfile(sourceDir,allDirS(dirNum).name),destinationDir, zipFlag)
+        batchConvert(fullfile(sourceDir,allDirS(dirNum).name),destinationDir, zipFlag, mergeScansFlag)
     end
 end
 if isempty(varargin)    

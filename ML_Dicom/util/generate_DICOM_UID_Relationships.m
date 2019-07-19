@@ -40,8 +40,13 @@ function planC = generate_DICOM_UID_Relationships(planC)
 indexS = planC{end};
 
 %Generate a master study UID for all parts of this planC.
-Study_Instance_UID = dicomuid;
-
+%Study_Instance_UID = dicomuid;
+if isfield(planC{indexS.scan}(1).scanInfo(1),'DICOMHeaders') && ...
+            ~isempty(planC{indexS.scan}(1).scanInfo(1).DICOMHeaders)
+    Study_Instance_UID = planC{indexS.scan}(1).scanInfo(1).DICOMHeaders.StudyInstanceUID;
+else
+    Study_Instance_UID = dicomuid;
+end
 
 %% SCAN UIDs
 %Iterate over CT scans
@@ -51,10 +56,24 @@ for i = 1:length(planC{indexS.scan})
     planC{indexS.scan}(i).Study_Instance_UID = Study_Instance_UID;
     
     %Generate a series instance UID for each scan;
-    planC{indexS.scan}(i).Series_Instance_UID = dicomuid;
+    %planC{indexS.scan}(i).Series_Instance_UID = dicomuid;
+    if isfield(planC{indexS.scan}(i).scanInfo(1), 'DICOMHeaders') && ...
+            ~isempty(planC{indexS.scan}(i).scanInfo(1).DICOMHeaders)
+        planC{indexS.scan}(i).Series_Instance_UID = ...
+            planC{indexS.scan}(i).scanInfo(1).DICOMHeaders.SeriesInstanceUID;
+    else
+        planC{indexS.scan}(i).Series_Instance_UID = dicomuid;
+    end
     
     %Generate a frame of reference UID for each scan.
-    planC{indexS.scan}(i).Frame_Of_Reference_UID = dicomuid;
+    %planC{indexS.scan}(i).Frame_Of_Reference_UID = dicomuid;
+    if isfield(planC{indexS.scan}(i).scanInfo(1), 'DICOMHeaders') && ...
+            ~isempty(planC{indexS.scan}(i).scanInfo(1).DICOMHeaders)
+        planC{indexS.scan}(i).Frame_Of_Reference_UID = ...
+            planC{indexS.scan}(i).scanInfo(1).DICOMHeaders.FrameofReferenceUID;
+    else
+        planC{indexS.scan}(i).Frame_Of_Reference_UID = dicomuid;
+    end
     
     % %     %Generate a SOP ClassUID for each scan.
     % %     modality = planC{indexS.scan}(i).scanInfo(1).imageType;
@@ -147,12 +166,20 @@ for i = 1:length(planC{indexS.structures});
     planC{indexS.structures}(i).Series_Instance_UID = Structure_Set_Series_UID;
     
     %Set the frame of reference UID to that of the associated scan.
-    aS = getStructureAssociatedScan(i, planC);
-    planC{indexS.structures}(i).Frame_Of_Reference_UID = planC{indexS.scan}(aS).Frame_Of_Reference_UID;
+    assocScanNum = getStructureAssociatedScan(i, planC);
+    planC{indexS.structures}(i).Frame_Of_Reference_UID = planC{indexS.scan}(assocScanNum).Frame_Of_Reference_UID;
     
     %Set the SOP UIDs.
     planC{indexS.structures}(i).SOP_Class_UID    = Structure_Set_SOP_Class_UID;
     planC{indexS.structures}(i).SOP_Instance_UID = Structure_Set_SOP_Instance_UID;
+    
+    % set the referenced SOP UID for each slice
+    for slc = 1:length(planC{indexS.structures}(i).contour)
+        planC{indexS.structures}(i).contour(slc).SOP_Class_UID = ...
+            planC{indexS.scan}(assocScanNum).scanInfo(slc).SOP_Class_UID;
+        planC{indexS.structures}(i).contour(slc).SOP_Instance_UID = ...
+            planC{indexS.scan}(assocScanNum).scanInfo(slc).SOP_Instance_UID;                
+    end
     
 end
 

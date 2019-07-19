@@ -204,28 +204,39 @@ switch fieldname
         
         imgOri = dcm2ml_Element(dcmobj.get(hex2dec('00200037')));
         
-        if (imgOri(1)==-1)
+        % Check for oblique scan
+        isOblique = 0;
+        if max(abs(abs(imgOri(:)) - [1 0 0 0 1 0]')) > 1e-3
+            isOblique = 1;
+        end
+        
+        if (imgOri(1)==-1) && ~isOblique
             dataS = iPP(1) - (abs(pixspac(2)) * (nCols - 1));
             dataS = dataS / 10;
         else
             dataS = iPP(1) / 10;
         end
         
-        if isstr(pPos)
+        if isstr(pPos) && ~isOblique
             switch upper(pPos)
                 case 'HFS'
                     dataS = dataS;
                 case 'HFP'
-                    %dataS = -dataS; %APA commented
-                    dataS = -dataS;
-                    dataS = 2*xOffset - dataS;
+                    %dataS = -dataS; %APA commented                    
+                    dataS = -dataS; % 1/3/2017
+                    xDoseSiz = (abs(pixspac(2)) * (nCols - 1))/10;
+                    dataS = dataS - xDoseSiz; % 1/3/2017
+                    
                 case 'FFS'
-                    %dataS = -dataS;
-                    dataS = dataS; %APA change
-                case 'FFP'
-                    %dataS = dataS;
                     dataS = -dataS;
-                    dataS = 2*xOffset - dataS;                    
+                    %dataS = dataS; %APA change
+                    xDoseSiz = (abs(pixspac(2)) * (nCols - 1))/10;
+                    dataS = dataS - xDoseSiz; % 1/3/2017
+                    
+                case 'FFP'
+                    dataS = dataS;
+                    %dataS = -dataS;
+                    %dataS = 2*xOffset - dataS;                    
             end
         else
             dataS = dataS; % default to HFS
@@ -276,10 +287,16 @@ switch fieldname
         
         imgOri = dcm2ml_Element(dcmobj.get(hex2dec('00200037')));
         
-        if (imgOri(2)==-1)
+        % Check for oblique scan
+        isOblique = 0;
+        if max(abs(abs(imgOri(:)) - [1 0 0 0 1 0]')) > 1e-3
+            isOblique = 1;
+        end        
+        
+        if (imgOri(2)==-1) && ~isOblique
             dataS = iPP(2) + (abs(pixspac(1)) * (nRows - 1));
             dataS = dataS / 10;
-        elseif (imgOri(2)==0) && (imgOri(5)==1) && (strcmpi(pPos,'FFP') || strcmpi(pPos,'HFP')) % flip is necessary to display couch at the bottom. How anout HFP?
+        elseif  ~isOblique && (imgOri(2)==0) && (imgOri(5)==1) && (strcmpi(pPos,'FFP') || strcmpi(pPos,'HFP')) % flip is necessary to display couch at the bottom. How anout HFP?
             % should be based on imgOri(5)?
             dataS = iPP(2) + (abs(pixspac(1)) * (nRows - 1));
             dataS = dataS / 10;            
@@ -287,7 +304,7 @@ switch fieldname
             dataS = iPP(2) / 10;            
         end        
         
-        if isstr(pPos)
+        if isstr(pPos) && ~isOblique
             switch upper(pPos)
                 case 'HFS'
                     dataS = -dataS;
@@ -481,6 +498,9 @@ switch fieldname
             %dataS = flipdim(dataS, 2);
             dataS = flipdim(dataS, 1); %APA change
         end
+        if isequal(pPos,'HFP')
+            dataS = flipdim(dataS, 2); % 1/3/2017
+        end
 
         maxDose = max(dataS(:));
         
@@ -488,6 +508,12 @@ switch fieldname
         %Image Position (Patient)
         iPP = dcm2ml_Element(dcmobj.get(hex2dec('00200032')));
         imgOri = dcm2ml_Element(dcmobj.get(hex2dec('00200037')));
+        % Check if oblique
+        isOblique = 0;
+        if max(abs(abs(imgOri(:)) - [1 0 0 0 1 0]')) > 1e-3
+            isOblique = 1;
+        end
+        
         %APA commented begins
 %         if ~isequal(pPos,'HFP')
 %             if (imgOri(1)==-1) || (imgOri(5)==-1)
@@ -522,7 +548,11 @@ switch fieldname
         end
         
         %Convert from DICOM mm to CERR cm, invert Z to match CERR Zdir.
-        dataS = - dataS / 10;
+        if ~isOblique
+            dataS = - dataS / 10;
+        else
+            dataS = dataS / 10;
+        end
         
     case 'delivered'
         %Currently unimplemented.
@@ -551,8 +581,14 @@ switch fieldname
     case 'assocScanUID'
         %wy, use the frame of reference UID to associate dose to scan.
         %dataS = char(dcmobj.getString(org.dcm4che2.data.Tag.FrameofReferenceUID));
-        dataS = dcm2ml_Element(dcmobj.get(hex2dec('00080018')));
-        
+%         dataS = dcm2ml_Element(dcmobj.get(hex2dec('00080018'))); % SOP instance UID
+        dataS = dcm2ml_Element(dcmobj.get(hex2dec('00200052'))); % Frame of Reference UID
+%         rtplanSeq = dcmobj.get(hex2dec('300C0002'));
+%         artpSeq = rtplanSeq.getDicomObject(0);
+%         rtplanML = dcm2ml_Object(artpSeq);
+%         refSOPClassUID = dcm2ml_Element(artpSeq.get(hex2dec('00081150')));
+%         refSOPInstanceUID = dcm2ml_Element(artpSeq.get(hex2dec('00081155')));
+
     case 'transM'
         %Implementation is unnecessary.
         

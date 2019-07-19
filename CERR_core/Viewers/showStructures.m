@@ -255,8 +255,14 @@ for i=1:length(axisInfo.structureGroup)
                                 xMinMax = [min(min(xCoords),xMinMax(1)) max(max(xCoords),xMinMax(2))];
                                 yMinMax = [min(min(yCoords),yMinMax(1)) max(max(yCoords),yMinMax(2))];
                                 handleIndex = axisInfo.lineHandlePool.currentHandle + 1;
-                                if handleIndex > stateS.optS.linePoolSize
-                                    error('The structures seems have a lot of segments. Increase the value of optS.linePoolSize in CERROptions.m')
+                                handlePoolSize = length(axisInfo.lineHandlePool(1).lineV);
+                                if handleIndex > handlePoolSize %stateS.optS.linePoolSize
+                                    % error('The structures seems have a lot of segments. Increase the value of optS.linePoolSize in CERROptions.m')
+                                    % expand the handle pool
+                                    for iPool = handlePoolSize+1:handlePoolSize+20
+                                        axisInfo.lineHandlePool(1).lineV(iPool) = line(NaN, NaN, 'parent', stateS.handle.CERRAxis(axInd), 'linestyle', '-', 'hittest', 'off', 'visible', 'off');
+                                        axisInfo.lineHandlePool(1).dotsV(iPool) = line(NaN, NaN, 'parent', stateS.handle.CERRAxis(axInd), 'linestyle', ':', 'hittest', 'off', 'visible', 'off');
+                                    end
                                 end
                                 set(axisInfo.lineHandlePool.lineV(handleIndex),'XData',xCoords,...
                                     'YData',yCoords, 'parent', hAxis,...
@@ -365,12 +371,24 @@ for i=1:length(axisInfo.structureGroup)
                     elseif structNum<=52
                         cellNum = 1;
                         structsOnSlice = structsOnSliceC{cellNum};
-                        includeCurrStruct = bitget(structsOnSlice, structNum);
+                        if isempty(structsOnSlice)
+                            includeCurrStruct = 0;
+                        else
+                            includeCurrStruct = bitget(structsOnSlice, structNum);
+                        end
                     else
                         cellNum = ceil((structNum-52)/8)+1; %uint8
-                        structsOnSlice = structsOnSliceC{cellNum};
-                        %includeCurrStruct = bitget(structsOnSlice, structNum-(cellNum-1)*52); %double
-                        includeCurrStruct = bitget(structsOnSlice, structNum-52-(cellNum-2)*8); %uint8
+                        if length(structsOnSliceC) < cellNum
+                            structsOnSlice = [];
+                        else
+                            structsOnSlice = structsOnSliceC{cellNum};
+                        end
+                        if isempty(structsOnSlice)
+                            includeCurrStruct = 0;
+                        else
+                            %includeCurrStruct = bitget(structsOnSlice, structNum-(cellNum-1)*52); %double
+                            includeCurrStruct = bitget(structsOnSlice, structNum-52-(cellNum-2)*8); %uint8
+                        end
                     end
                     if includeCurrStruct
                         axisInfo.structureGroup(i).structNumsV = [axisInfo.structureGroup(i).structNumsV ...
@@ -442,9 +460,15 @@ for i=1:length(axisInfo.structureGroup)
                             yMinMax = [min(min(yDataV),yMinMax(1)) max(max(yDataV),yMinMax(2))];                            
                             % Set x,y data for line object
                             handleIndex = axisInfo.lineHandlePool.currentHandle + 1;
-                            if handleIndex > stateS.optS.linePoolSize
-                                error('The structures seems have a lot of segments. Increase the value of optS.linePoolSize in CERROptions.m')
-                            end                            
+                            handlePoolSize = length(axisInfo.lineHandlePool(1).lineV);
+                            if handleIndex > handlePoolSize %stateS.optS.linePoolSize
+                                % error('The structures seems have a lot of segments. Increase the value of optS.linePoolSize in CERROptions.m')
+                                % expand the handle pool
+                                for iPool = handlePoolSize+1:handlePoolSize+20
+                                    axisInfo.lineHandlePool(1).lineV(iPool) = line(NaN, NaN, 'parent', stateS.handle.CERRAxis(axInd), 'linestyle', '-', 'hittest', 'off', 'visible', 'off');
+                                    axisInfo.lineHandlePool(1).dotsV(iPool) = line(NaN, NaN, 'parent', stateS.handle.CERRAxis(axInd), 'linestyle', ':', 'hittest', 'off', 'visible', 'off');
+                                end
+                            end
                             set(axisInfo.lineHandlePool.lineV(handleIndex),'XData',xDataV,...
                                 'YData',yDataV,'parent',hAxis,...
                                 'linewidth', stateS.optS.structureThickness,...

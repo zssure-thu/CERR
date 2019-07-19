@@ -62,7 +62,7 @@ switch fieldname
     case 'graphicAnnotationS'
         %Graphic Object Sequence
         graphicObjSeq = annotObj.get(hex2dec('00700009'));
-
+        
         if isempty(graphicObjSeq)
             return;
         end
@@ -78,7 +78,7 @@ switch fieldname
             graphicAnnotationS(i).graphicAnnotationData    = dcm2ml_Element(aGraphicAnnot.get(hex2dec('00700022')));
             graphicAnnotationS(i).graphicAnnotationType    = dcm2ml_Element(aGraphicAnnot.get(hex2dec('00700023')));
             graphicAnnotationS(i).graphicAnnotationFilled  = dcm2ml_Element(aGraphicAnnot.get(hex2dec('00700024')));            
-        end
+        end        
         
         dataS = graphicAnnotationS;
         
@@ -108,6 +108,21 @@ switch fieldname
         end
         
         dataS = textAnnotationS;
+        
+    case 'presentLabel'
+        % Label
+        dataS = dcm2ml_Element(dcmobj.get(hex2dec('00700080')));
+        
+        
+    case 'presentDescription'
+        % Description
+        dataS = dcm2ml_Element(dcmobj.get(hex2dec('00700081')));
+        
+        
+    case 'presentCreationDate'
+        % Date
+        dataS = dcm2ml_Element(dcmobj.get(hex2dec('00700082')));
+        
         
     case 'annotUID'
         

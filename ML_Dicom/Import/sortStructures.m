@@ -1,4 +1,4 @@
-function structS = sortStructures(structS, planC)
+function structS = sortStructures(structS, isObliqScanV, planC)
 
 if ~exist('planC','var')
     global planC
@@ -53,7 +53,7 @@ modality = planC{indexS.scan}(scanInd).scanInfo(1).imageType;
 
 for j=1:length(zmesh) % loop through the number of CT
     
-    if strcmpi(modality,'mr')
+    if isObliqScanV(scanInd)  % strcmpi(modality,'mr')
         % APA: use sopInstanceUID to find the matching slice for MR scan
         sopInstanceUID = planC{indexS.scan}(scanInd).scanInfo(j).DICOMHeaders.SOPInstanceUID;
         locate_point = strmatch(sopInstanceUID,sopInstanceC);
@@ -61,7 +61,7 @@ for j=1:length(zmesh) % loop through the number of CT
         locate_point=find(voiZ==zmesh(j)); % search for a match between Z-location of current CT and voiZ
     end
 
-    if isempty(locate_point) && ~strcmpi(modality,'mr')
+    if isempty(locate_point) && ~isObliqScanV(scanInd)  % ~strcmpi(modality,'mr')
         
         [locate_point]=find(voiZ>zmesh(j)-slicethickness(j)./2 & voiZ<zmesh(j)+slicethickness(j)./2);
         
@@ -122,14 +122,6 @@ for j=1:length(zmesh) % loop through the number of CT
             %                 slice=slice+1;
             segment = structS.contour(index(locate_point(k))).segments;
             segment(:,3) = zmesh(j);
-            % for oblique MR scans, flip along scan's yOffset and add
-            % the offset from the first slice
-            if strcmpi(modality,'mr') && numel(unique(planC{indexS.scan}(scanInd)...
-                    .scanInfo(1).DICOMHeaders.ImageOrientationPatient)) > 2
-                deltaY = planC{indexS.scan}(scanInd).scanInfo(j).yOffset - ...
-                    planC{indexS.scan}(scanInd).scanInfo(1).yOffset;
-                segment(:,2) = deltaY + planC{indexS.scan}(scanInd).scanInfo(j).yOffset - segment(:,2);
-            end
             contourTemplate(j).segments(end+1).points = segment;
         end
     end

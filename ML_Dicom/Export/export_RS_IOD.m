@@ -61,9 +61,11 @@ for scanNum = 1:length(planC{indexS.scan})
         
     %Export each module required for the RS IOD, copying the results into the
     %common dcmobj container and return.
-    if isfield(scanS.scanInfo(1).DICOMHeaders,'PatientID')
-        structureS(1).DICOMHeaders.PatientID = scanS.scanInfo(1).DICOMHeaders.PatientID;
+    if isfield(scanS.scanInfo(1),'DICOMHeaders') ...
+            && isfield(scanS.scanInfo(1).DICOMHeaders,'PatientID')
+        structureS(1).DICOMHeaders.PatientID = scanS.scanInfo(1).DICOMHeaders.PatientID;        
     end
+    structureS(1).patientName = scanS.scanInfo(1).patientName;
     ssobj = export_module('patient', 'structures', structureS);
     ssobj.copyTo(dcmobj);
     clear ssobj;
@@ -96,8 +98,12 @@ for scanNum = 1:length(planC{indexS.scan})
     ssobj.copyTo(dcmobj);
     clear ssobj;
     
-    fileNum  = num2str(filenumber + nWritten);
-    filename = fullfile(destDirPath,['RS_', repmat('0', [1 5-length(fileNum)]), fileNum]);
+    if ischar(filenumber)
+        filename = fullfile(filenameRoot,filenumber);
+    else
+        fileNum  = num2str(filenumber + nWritten);
+        filename = fullfile(destDirPath,['RS_', repmat('0', [1 5-length(fileNum)]), fileNum]);
+    end
     
     writefile_mldcm(dcmobj, filename);
     

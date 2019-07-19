@@ -84,12 +84,31 @@ end
 noCT = 0;
 
 %Get CT data
-if ~exist('CT2M') || (isempty(CT2M) && isempty(CTXVals))
+if ~exist('CT2M','var') || (isempty(CT2M) && isempty(CTXVals))
     CT2M = zeros(size(dose2M));
     CTXVals = doseXVals;
     CTYVals = doseYVals;
+    minCol = 1;
+    maxCol = m;
+    maxRow = n;
+    minRow = 1;  
+    noCT = 1;
 else
     dose2M = finterp2(doseXVals, doseYVals, dose2M, CTXVals, CTYVals, 1, 0);
+    
+    % get row/col for clipping the dose grid
+    minCol = findnearest(CTXVals,min(doseXVals));
+    maxCol = findnearest(CTXVals,max(doseXVals));
+    maxRow = findnearest(CTYVals,min(doseYVals));
+    minRow = findnearest(CTYVals,max(doseYVals));
+    
+    % Swap min/max based on the order of x/v vectors for trans/sag/cor views
+    minColTmp = min(minCol,maxCol);
+    maxCol = max(minCol,maxCol);
+    minCol = minColTmp;
+    minRowTmp = min(minRow,maxRow);
+    maxRow = max(minRow,maxRow);
+    minRow = minRowTmp;
 
 %     %% for DDM : Use Kriging to fit dose
 %     [CTXValsM, CTYValsM] = meshgrid(CTXVals, CTYVals);
@@ -190,6 +209,11 @@ if stateS.optS.calcDoseInsideSkinOnly
         %dose2M(skinMaskM) = 0;
     end
 end
+
+% Clip dose grid
+maskTmpM = maskM;
+maskM = false(size(maskM));
+maskM(minRow:maxRow,minCol:maxCol) = maskTmpM(minRow:maxRow,minCol:maxCol);
 
 %Fit dose to colormap, but first replace full dose with only dose values that will be displayed.
 lowerBound = colorbarRange(1);

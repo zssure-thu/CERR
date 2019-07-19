@@ -112,6 +112,10 @@ switch tag
                 bools = [scanS.scanInfo.zValue] == scanInfoS.zValue;
                 vals = scanS.scanArray(:,:,bools);
                 maxV = max(vals(:));
+                % apply scale factor
+                scaleFactorV = args.data{4};
+                scaleFactor = scaleFactorV(bools);
+                maxV = uint16(maxV/scaleFactor);                
                 log2s = log2(double(maxV));
                 mostSignificantBit = floor(max(log2s)) + 1;
                 data = max(mostSignificantBit, 12);
@@ -129,6 +133,10 @@ switch tag
                 bools = [scanS.scanInfo.zValue] == scanInfoS.zValue;
                 vals = scanS.scanArray(:,:,bools);
                 maxV = max(vals(:));
+                % apply scale factor
+                scaleFactorV = args.data{4};
+                scaleFactor = scaleFactorV(bools);
+                maxV = uint16(maxV/scaleFactor);                
                 log2s = log2(double(maxV));
                 mostSignificantBit = floor(max(log2s)) + 1;
                 data = max(mostSignificantBit, 12);
@@ -179,7 +187,8 @@ switch tag
                 data = scanS.scanArray(:,:,sliceNum);
                 
                 %Convert to unsigned 16-bit integer if scanArray is single
-                scaleFactor = args.data{4};
+                scaleFactorV = args.data{4};
+                scaleFactor = scaleFactorV(sliceNum);
                 data = uint16(data/scaleFactor);
                 
                 data = data';

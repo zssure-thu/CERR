@@ -88,7 +88,7 @@ switch cellName
             % Test IOP here to find if it is "nominal" or "non-nominal"
             % % %             outIOP = getTest_Scan_IOP(seriesC{seriesNum}.Data(1).file);
             
-            if ismember(typeC{seriesNum},{'CT','OT','NM','MR','PT','ST','MG'})
+            if ismember(typeC{seriesNum},{'CT','OT','NM','MR','PT','ST','MG','SM'})
                 
                 %Populate each field in the scan structure.
                 for i = 1:length(names)
@@ -111,16 +111,28 @@ switch cellName
                         end
                     end
                 elseif ~strcmpi(typeC{seriesNum}, 'PT')
-                    if abs(dataS(scansAdded+1).scanInfo(1).rescaleSlope - 1) > eps*1e5
-                        dataS(scansAdded+1).scanArray = single(int32(dataS(scansAdded+1).scanArray) * dataS(scansAdded+1).scanInfo(1).rescaleSlope + dataS(scansAdded+1).scanInfo(1).rescaleIntercept);
+                    rescaleSlope = dataS(scansAdded+1).scanInfo(1).rescaleSlope;
+                    if abs(rescaleSlope - 1) > eps*1e5
+                        dataS(scansAdded+1).scanArray = single(int32(dataS(scansAdded+1).scanArray) * rescaleSlope + dataS(scansAdded+1).scanInfo(1).rescaleIntercept);
                     else
                         if min(dataS(scansAdded+1).scanArray(:)) >= -32768 && max(dataS(scansAdded+1).scanArray(:)) <= 32767
-                            dataS(scansAdded+1).scanArray = uint16(int16(dataS(scansAdded+1).scanArray) * dataS(scansAdded+1).scanInfo(1).rescaleSlope + dataS(scansAdded+1).scanInfo(1).rescaleIntercept);
+                            dataS(scansAdded+1).scanArray = uint16(int16(dataS(scansAdded+1).scanArray) * rescaleSlope + dataS(scansAdded+1).scanInfo(1).rescaleIntercept);
                         else
-                            dataS(scansAdded+1).scanArray = uint16(int32(dataS(scansAdded+1).scanArray) * dataS(scansAdded+1).scanInfo(1).rescaleSlope + dataS(scansAdded+1).scanInfo(1).rescaleIntercept);
+                            dataS(scansAdded+1).scanArray = uint16(int32(dataS(scansAdded+1).scanArray) * rescaleSlope + dataS(scansAdded+1).scanInfo(1).rescaleIntercept);
+                        end
+                    end
+                    if strcmpi(typeC{seriesNum}, 'MR')  %% ADDED AI 12/28/16 %%
+                        % Ref: Chenevert, Thomas L., et al. "Errors in quantitative image analysis due to platform-dependent image scaling." 
+                        %Apply scale slope & intercept for Philips data
+                        manufacturer = dataS(scansAdded+1).scanInfo(1).DICOMHeaders.Manufacturer;
+                        if ~isempty(strfind(lower(manufacturer),'philips')) && ~isempty(dataS(scansAdded+1).scanInfo(1).scaleSlope)
+                            scaleSlope = dataS(scansAdded+1).scanInfo(1).scaleSlope;
+                            dataS(scansAdded+1).scanArray = single(dataS(scansAdded+1).scanArray)./(rescaleSlope*scaleSlope);
                         end
                     end
                 end
+                
+                
 
                 scansAdded = scansAdded + 1;
                 
@@ -355,7 +367,9 @@ switch cellName
                             if isfield(dvhsequence.(['Item_',num2str(i)]),'DVHReferencedROISequence')
                                 structureNumber = dvhsequence.(['Item_',num2str(i)]).DVHReferencedROISequence.Item_1.ReferencedROINumber;
                                 indROINumber = find(structureNumberV==structureNumber);
-                                dataS(dvhsAdded+1).structureName = structureNameC{indROINumber};
+                                if ~isempty(indROINumber)
+                                    dataS(dvhsAdded+1).structureName = structureNameC{indROINumber};
+                                end
                             end
                             dataS(dvhsAdded+1).doseScale = dvhsequence.(['Item_',num2str(i)]).DVHDoseScaling;
                             binWidthsV = dvhsequence.(['Item_',num2str(i)]).DVHData(1:2:end);
@@ -485,6 +499,10 @@ switch cellName
                     
                     %Graphic Annotation Sequence.             
                     el = gspsobj.get(hex2dec('00700001'));
+                    
+                    if isempty(el)
+                        continue;
+                    end
 
                     % ROI = strobj.getInt(org.dcm4che2.data.Tag.ROIContourSequence);
                     
@@ -554,8 +572,10 @@ switch cellName
     case 'importLog'
         %Implementation is unnecessary.
         
-    case 'CERROptions'
-        dataS = CERROptions;
+    case 'CERROptions'        
+        pathStr = getCERRPath;
+        optName = [pathStr 'CERROptions.json'];
+        dataS = opts4Exe(optName);        
         
     case 'indexS'
         %Implementation is unnecessary.

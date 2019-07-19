@@ -1508,6 +1508,7 @@ switch lower(in)
         c = interp1(1:N, a(:,2), pts);
         d = interp1(1:N, a(:,3), pts);
         map = [b' c' d'];
+        map(1,:) = [0 0 0];
 
     case 'hotcold'
         a = [0 1 1;...
@@ -1868,4 +1869,7 @@ switch lower(in)
             0.705673158	0.01555616	0.150232812
             ];
 
+        
+    case 'weather'
+        map = flipud(weatherMap);
 end

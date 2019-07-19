@@ -1,5 +1,5 @@
-function planC = flipAlongZ(scanNum)
-% function planC = flipAlongZ(scanNum)
+function planC = flipAlongZ(scanNum,planC)
+% function planC = flipAlongZ(scanNum,planC)
 %
 % Flip scan, structures and doses along Z direction
 %
@@ -32,6 +32,7 @@ function planC = flipAlongZ(scanNum)
 % You should have received a copy of the GNU General Public License
 % along with CERR.  If not, see <http://www.gnu.org/licenses/>.
 
+global stateS
 if ~exist('planC','var')
     global planC
 end
@@ -99,6 +100,7 @@ for doseNum = 1:length(planC{indexS.dose})
 end
 
 %ReRaster and ReUniformize
-reRasterAndUniformize
-
-CERRRefresh
+planC = reRasterAndUniformize(planC);
+if isfield(stateS,'planLoaded') && stateS.planLoaded
+    CERRRefresh
+end

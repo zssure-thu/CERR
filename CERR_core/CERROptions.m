@@ -175,14 +175,14 @@ optS.zoomFactor = 2.0;       %x-y scale factor when zooming.
 
 optS.dosePlotType = 'colorwash';%Method of dose distribution display:  'isodose' or 'colorwash'.
 
-optS.doseColormap = 'starinterp';  %Colormap for dose colorwash.  It is read from CERRColormap.m.
+optS.doseColormap = 'weather';  %Colormap for dose colorwash.  It is read from CERRColormap.m.
 %Options:  'jetmod' (modified jet), 'full' (full rainbow), 'ppt'
 %(powerpoint based) 'star (14 non-blending colors)', 'starinterp', 'gray' or 'gray256'.
 
 optS.CTColormap = 'gray256'; %CT colormap, usually grayscale.  Also read from CERRColormap.m.
 %Same choices as optS.doseColormap.
 
-optS.colorbarChoices = {'coolwarm','jetmod', 'ppt', 'full', 'full2', 'star', 'starinterp', 'gray', 'gray256', 'grayud64', 'doublecolorinvert', 'thedrewspecial', 'graycenter0width300', 'hotcold', 'copper'};
+optS.colorbarChoices = {'coolwarm','jetmod', 'ppt', 'full', 'full2', 'star', 'starinterp', 'gray', 'gray256', 'grayud64', 'doublecolorinvert', 'thedrewspecial', 'graycenter0width300', 'hotcold', 'copper', 'weather'};
 
 optS.staticColorbar = 0;         %Set to 1 to have the same colors represent the same dose values when switching between does distributions.
 
@@ -258,7 +258,7 @@ optS.DVHLineWidth  = 1.5;       %Line thickness of DVH and DSH lines.
 %optS.ROISampleRate = 1;         Uses the same as DVH
 
 
-optS.IVHBinWidth = 0.05;       %Store and display IVHs with this width, in units of Gy.
+optS.IVHBinWidth = 0.02;       %Store and display IVHs with this width, in units of Gy.
 
 
 optS.IVHBlockSize = 5000;      %Block processing parameter.  5000 is the default.  This results in much less temporary
@@ -322,7 +322,7 @@ optS.planMetrics = {'meanDose', 'maxDose', 'minDose', 'Vx', 'Dx', 'EUD', 'ERP', 
 optS.windowPresets = [struct('name', '--Manual--', 'center', 0, 'width', 0) struct('name', 'Abd/Med', 'center', -10, 'width', 330) struct('name', 'Head', 'center', 45, 'width', 125) struct('name', 'Liver', 'center', 80, 'width', 305) struct('name', 'Lung', 'center', -500, 'width', 1500) struct('name', 'Spine', 'center', 30, 'width', 300)    struct('name', 'Vrt/Bone', 'center', 400, 'width', 1500)   struct('name', 'PET', 'center', 4500, 'width', 11000) struct('name', 'MR', 'center', -500, 'width', 1350) struct('name', 'SPECT', 'center', 400, 'width', 1000) struct('name', 'Top 90', 'center', 400, 'width', 1000)];
 
 %--Color Map base scan----------------------------------------------------%
-optS.scanColorMap = [struct('name', 'gray256') struct('name', 'copper') struct('name', 'Red') struct('name', 'Green') struct('name', 'Blue') struct('name', 'StarInterp') struct('name', 'hotCold')];
+optS.scanColorMap = [struct('name', 'gray256') struct('name', 'copper') struct('name', 'Red') struct('name', 'Green') struct('name', 'Blue') struct('name', 'StarInterp') struct('name', 'hotCold') struct('name', 'weather')];
 
 %--Caching Options--------------------------------------------------------%
 optS.cachingEnabled = 0; % set to 1 to enable caching, 0 to disable.
@@ -365,13 +365,13 @@ optS.ROIInterpretedType = initROIInterpretedType;
 %--RPC film options-------------------------------------------------------%
 
 %-- Option to convert PET to SUV
-optS.convert_PET_to_SUV = 1; % 0: Do not convert to SUV, 1: Convert to SUV
+optS.convert_PET_to_SUV = 0; % 0: Do not convert to SUV, 1: Convert to SUV
 
 %-- Option to overwrite CERR file if a bug is found during QA
-optS.overwrite_CERR_File = 1; % 0: Do not overwrite, 1: overwrite
+optS.overwrite_CERR_File = 0; % 0: Do not overwrite, 1: overwrite
 
 %-- Option to overwrite CERR file if a bug is found during QA
-optS.sinc_filter_on_display = 1; % 0: Do not apply sinc, 1: apply sinc
+optS.sinc_filter_on_display = 0; % 0: Do not apply sinc, 1: apply sinc
 
 %-- Filename for plastimatch commands
 % this file must be stored under ...\CERR\CERR_core\ImageRegistration\plastimatch_command
@@ -381,4 +381,32 @@ optS.plastimatch_command_file = 'bspline_register_cmd_dir.txt'; %'malcolm_pike_m
 % Set this value based on anticipated structure segments per view
 optS.linePoolSize = 300;
 
+%-- Paths to protocol, model, and criteria files for ROE
+optS.ROEProtocolPath = 'M:/Aditi/OutcomesModels/ROE/Protocols'; 
+optS.ROEModelPath = 'M:/Aditi/OutcomesModels/ROE/Models';
+optS.ROECriteriaPath = 'M:/Aditi/OutcomesModels/ROE/Criteria';
+
+%-- Radiomics features calculation parameters
+
+% number of rows/cols/slcs ...
+% to upsample the roi
+optS.shape_rcsV = [100, 100, 100]; 
+
+optS.higherOrder_minIntensity = -140;
+optS.higherOrder_maxIntensity = 100;
+optS.higherOrder_numGrLevels = 100;
+optS.higherOrder_patchRadius2dV = [1 1 0];
+optS.higherOrder_patchRadius3dV = [1 1 1];
+optS.higherOrder_imgDiffThresh = 0;
+
+optS.peakValley_peakRadius = [2 2 0]; % [2 2 2] for 3d, for example
+
+optS.ivh_xForIxV = 10:10:90; % percentage volume
+optS.ivh_xAbsForIxV = 10:20:200; % absolute volume [cc]
+optS.ivh_xForVxV = 10:10:90; % percent intensity cutoff
+optS.ivh_xAbsForVxV =  -140:10:100; % CT eg., absolute intensity cutoff (image units)
+                                    % 0:2:28; % PET
+
+                                    
 %-------------------------------------------fini--------------------------%
+                                    

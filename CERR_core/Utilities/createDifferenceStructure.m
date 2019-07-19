@@ -5,6 +5,9 @@ function planC = createDifferenceStructure(structNum1,structNum2,planC)
 %
 % APA, 09/11/2012
 
+if ~exist('planC','var')
+    global planC
+end
 indexS = planC{end};
 
 % Get RasterSegments for structNum1 and structNum2
@@ -14,8 +17,12 @@ rasterSegs2 = getRasterSegments(structNum2, planC);
 % Get associated scanNum 
 scanNum = 1;
 
-% Get Union of the two rasterSegments
-rasterSegs = structDiff(rasterSegs1, rasterSegs2, scanNum, planC);
+% Get Difference of the two rasterSegments
+if ~isempty(rasterSegs1) && ~isempty(rasterSegs2)
+    rasterSegs = structDiff(rasterSegs1, rasterSegs2, scanNum, planC);
+else
+    rasterSegs = rasterSegs1;
+end
 
 % Get Contours from rasterSegs
 contourS = rasterToPoly(rasterSegs, scanNum, planC);

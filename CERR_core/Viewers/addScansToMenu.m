@@ -3,6 +3,8 @@ function addScansToMenu(hScanMenu,topMenuFlag,selectedScan)
 %
 %
 % APA, 03/28/2016
+% AI, 01/09/2018 : Additional grouping of scans by type
+% AI, 07/24/18 Bug fix for empty scan type
 
 global planC stateS
 indexS = planC{end};
@@ -22,7 +24,7 @@ if ~topMenuFlag
     scanSets = getAxisInfo(hAxis,'scanSets');
 end
 
-if nargin==2
+if nargin==2 && isfield(stateS,'scanSet')
     selectedScan = stateS.scanSet;   %%ADDED 
 end
 
@@ -31,37 +33,69 @@ if numScans > maxScansPerGroup
     
     hSubScanMenu = [];
     
-    [~,indSortV] = sortrows([scanDatesC' scanTypeC']);
+    [~,indSortV] = sortrows([scanDatesC' scanTypeC'],2);
     currInd = 1;
-    changeInd = currInd;
+    changeInd = currInd; 
     currentScan = indSortV(currInd);
-    scanType = planC{indexS.scan}(currentScan).scanType;
+    scanType = 'NoScans';
+    %hScanGroupMenu = [];
     
     while currInd <= numScans
         
         currentScan = indSortV(currInd);
-        if mod(currInd-changeInd,maxScansPerGroup) == 0 || ~strcmpi(scanType,planC{indexS.scan}(currentScan).scanType)
-            if ishandle(hSubScanMenu)
-                rangeStr = [num2str(changeInd),'-',num2str(currInd-1)];
-                set(hSubScanMenu,'label',[scanType,' (',rangeStr,')'])
+        if ~strcmpi(scanType,planC{indexS.scan}(currentScan).scanType)
+            if sum(strcmp(planC{indexS.scan}(currentScan).scanType,...
+                    {planC{indexS.scan}.scanType}))>1
+                hScanGroupMenu = uimenu(hScanMenu, 'label', planC{indexS.scan}(currentScan).scanType,...
+                    'interruptible','on','separator','on', 'Checked', 'off');
+                changeInd = currInd;
+                dispIdx = 1;
+            else
+                hScanGroupMenu = [];
+                hSubScanMenu = uimenu(hScanMenu, 'label', planC{indexS.scan}(currentScan).scanType,...
+                    'interruptible','on','separator','on', 'Checked', 'off');
             end
-            changeInd = currInd;
-            % Create new sub-level
-            hSubScanMenu = uimenu(hScanMenu, 'label', planC{indexS.scan}(currentScan).scanType,...
-                'interruptible','on','separator','on', 'Checked', 'off');
-            scanType = planC{indexS.scan}(currentScan).scanType;
         end
+    
+        
+        scanType = planC{indexS.scan}(currentScan).scanType;
+        if mod(currInd-changeInd,maxScansPerGroup) == 0 %Changed
+            if ishandle(hScanGroupMenu)
+                %create new sub-level
+                hSubScanMenu = uimenu(hScanGroupMenu, 'label', planC{indexS.scan}(currentScan).scanType,...
+                    'interruptible','on','separator','on', 'Checked', 'off');
+                groupEndScan = min(currentScan+maxScansPerGroup-1,length(planC{indexS.scan}));
+                groupIdxV = strcmp(scanType,{planC{indexS.scan}(currentScan:groupEndScan).scanType});
+                endIdx = find(groupIdxV,1,'last');
+                rangeStr = [num2str(dispIdx),'-',num2str(dispIdx+endIdx-1)];
+                set(hSubScanMenu,'label',[scanType,' (',rangeStr,')']);
+                dispIdx = dispIdx + maxScansPerGroup;
+            end
+        end
+        
         
         scanDate = planC{indexS.scan}(currentScan).scanInfo(1).scanDate;
         dateString = '';
         if ~isempty(scanDate)
-            dateString = datestr(datenum(planC{indexS.scan}(currentScan)...
-                .scanInfo(1).scanDate,'yyyymmdd'));
+            try
+                dateString = datestr(datenum(planC{indexS.scan}(currentScan)...
+                    .scanInfo(1).scanDate,'yyyymmdd'));
+            catch
+                dateString = planC{indexS.scan}(currentScan).scanInfo(1).scanDate;
+            end
         end
         
+        scanDescription = planC{indexS.scan}(currentScan).scanInfo(1).scanDescription; %AI 5/9/17 Display series description    
+        if isempty(scanDescription)
+            scanTitle = scanType;
+        else
+            scanTitle = [scanType,': ',scanDescription];
+        end
+
         str2 = num2str(currentScan);
         if topMenuFlag
-            hScan = uimenu(hSubScanMenu, 'label', [str2,'. ',scanType, ' (',dateString,')'],...
+           
+            hScan = uimenu(hSubScanMenu, 'label', [str2,'. ',scanTitle, ' (',dateString,')'],...
                 'callback',['sliceCallBack(''selectScan'',''', str2 ,''')'],...
                 'tag', ['scanItem',str2],...                               %ADDED
                 'interruptible','on','separator','off', 'Checked', 'off');
@@ -84,8 +118,6 @@ if numScans > maxScansPerGroup
         currInd = currInd + 1;
         
     end
-    rangeStr = [num2str(changeInd),'-',num2str(numScans)];
-    set(hSubScanMenu,'label',[scanType,' (',rangeStr,')'])
     
     return;
     
@@ -101,7 +133,7 @@ for i = 1 : numScans
             'callback',['sliceCallBack(''selectScan'',''', str2 ,''')'],...
             'interruptible','on','separator','off', 'Checked', 'off',...
             'tag', ['scanItem',str2]);                        %ADDED
-        if isfield(stateS,'scanSet') && selectedScan == i
+        if isfield(stateS,'scanSet') && selectedScan(1) == i
             set(hScan,'Checked','on')
         end
         

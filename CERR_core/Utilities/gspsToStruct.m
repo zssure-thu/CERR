@@ -1,4 +1,4 @@
-function planC = gspsToStruct(scanNum, gspsNumV)
+function planC = gspsToStruct(scanNum, gspsNumV, planC)
 % function planC = gspsToStruct(scanNum, gspsNumV)
 %
 % this function creates a Structure out of GSPS objects associated with
@@ -7,7 +7,10 @@ function planC = gspsToStruct(scanNum, gspsNumV)
 %
 % APA, 12/01/2015
 
-global stateS planC
+global stateS
+if ~exist('planC','var')
+    global planC
+end
 indexS = planC{end};
 
 if ~exist('gspsNumV','var')
@@ -45,7 +48,7 @@ for i=gspsNumV
         continue
     end
     createStructureFlag = 1;
-    emptySicesV(sliceNum) = [];
+    emptySicesV(sliceNum) = NaN;
     numGraphic = length(planC{indexS.GSPS}(i).graphicAnnotationS);
     for iGraphic = 1:numGraphic
         graphicAnnotationType = planC{indexS.GSPS}(i).graphicAnnotationS(iGraphic).graphicAnnotationType;
@@ -53,13 +56,22 @@ for i=gspsNumV
         graphicAnnotationData = planC{indexS.GSPS}(i).graphicAnnotationS(iGraphic).graphicAnnotationData;
         rowV = graphicAnnotationData(1:2:end);
         colV = graphicAnnotationData(2:2:end);
-        [xV, yV] = mtoaapm(colV, rowV, Dims, gridUnits, offset);
+        % [xV, yV] = mtoaapm(colV, rowV, Dims, gridUnits, offset);
+        yShiftedV = double(-double(colV)+Dims(1));
+        xShiftedV = double(rowV);
+        yOffset = Dims(1)/2+0.5;
+        xOffset = Dims(2)/2-0.5;
+        xV = xShiftedV-xOffset;
+        yV = yShiftedV-yOffset;
+        xV = xV*gridUnits(2)+offset(2);
+        yV = yV*gridUnits(1)+offset(1);
         points = [xV(:) yV(:) zVals(sliceNum)*ones(length(xV),1)];
         newStructS.contour(sliceNum).segments(iGraphic).points = points;        
     end
 
 end
 
+emptySicesV = find(~isnan(emptySicesV));
 for empt = emptySicesV
     newStructS.contour(empt).segments.points = [];
 end
